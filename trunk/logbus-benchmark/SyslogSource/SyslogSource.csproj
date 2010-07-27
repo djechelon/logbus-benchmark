@@ -48,6 +48,15 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\It.Unina.Dis.Logbus\It.Unina.Dis.Logbus.csproj">
+      <Project>{9D119D96-4F98-4131-90D4-1F5FE2EC09B7}</Project>
+      <Name>It.Unina.Dis.Logbus</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
