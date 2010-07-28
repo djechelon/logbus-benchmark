@@ -66,7 +66,7 @@ namespace SyslogSource
 
             System.Threading.Thread.Sleep(3000);
 
-            for (int i = 0; i < messages - 1; i++)
+            for (int i = 0; i < messages; i++)
             {
                 SyslogMessage message = new SyslogMessage()
                 {
