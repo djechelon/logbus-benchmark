@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using It.Unina.Dis.Logbus;
 using System.Collections.Specialized;
+using System.Threading;
 
 namespace LogbusCore
 {
@@ -18,6 +19,10 @@ namespace LogbusCore
             logbus.MessageReceived += new SyslogMessageEventHandler(logbus_MessageReceived);
 
             logbus.Start();
+
+            Console.WriteLine("Server is active. Status will be printed on this console. Run SysglogSource with appropriate parameters to proceed with the benchmark");
+
+            Thread.Sleep(Timeout.Infinite);
         }
 
         static void logbus_MessageReceived(object sender, SyslogMessageEventArgs e)
