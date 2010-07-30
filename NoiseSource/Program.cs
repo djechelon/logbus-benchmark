@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using It.Unina.Dis.Logbus;
 using It.Unina.Dis.Logbus.Loggers;
+using System.Threading;
 
 namespace NoiseSource
 {
@@ -40,6 +41,8 @@ namespace NoiseSource
                     Text = "The quick brown fox jumps over the lazy dog"
                 };
                 server.SubmitMessage(start_msg);
+
+                if (timeout > 0) Thread.Sleep(timeout);
             }
         }
     }
