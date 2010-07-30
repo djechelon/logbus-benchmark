@@ -8,6 +8,12 @@ using System.Threading;
 
 namespace NoiseSource
 {
+    /// <summary>
+    /// This program continuously sends garbage messages to Logbus in order to increase network traffic
+    /// and Logbus CPU usage
+    /// 
+    /// Parameter: number of milliseconds between each messages
+    /// </summary>
     class Program
     {
         static void Main(string[] args)
