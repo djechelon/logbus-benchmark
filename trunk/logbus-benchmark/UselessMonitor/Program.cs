@@ -62,9 +62,9 @@ namespace UselessMonitor
                 chan_manager.CreateChannel(info);
             }
 
-            Thread.Sleep(Timeout.Infinite);
-
             Console.WriteLine("Created {0} channels to disturb Logbus. Exit when you're done", chans);
+
+            Thread.Sleep(Timeout.Infinite);
         }
 
         static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
