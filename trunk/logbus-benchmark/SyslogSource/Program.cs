@@ -52,13 +52,15 @@ namespace SyslogSource
         /// <param name="timeout">Timeout between messages</param>
         private static void Run(int messages, int timeout)
         {
+            string host = System.Net.Dns.GetHostName();
+
             ILogCollector server = LoggerHelper.CreateDefaultCollector();
             SyslogMessage start_msg = new SyslogMessage()
             {
                 Timestamp = DateTime.Now,
                 Facility = SyslogFacility.Local4,
                 Severity = SyslogSeverity.Notice,
-                Host = "bench-host",
+                Host = host,
                 MessageId = "RESET",
                 Text = messages.ToString()
             };
@@ -73,7 +75,7 @@ namespace SyslogSource
                     Timestamp = DateTime.Now,
                     Facility = SyslogFacility.Local4,
                     Severity = SyslogSeverity.Notice,
-                    Host = "bench-host",
+                    Host = host,
                     MessageId = "BENCH",
                     Text = i.ToString()
                 };
@@ -89,7 +91,7 @@ namespace SyslogSource
                 Timestamp = DateTime.Now,
                 Facility = SyslogFacility.Local4,
                 Severity = SyslogSeverity.Notice,
-                Host = "bench-host",
+                Host = host,
                 MessageId = "END"
             };
             server.SubmitMessage(end_msg);

@@ -5,15 +5,18 @@ using System.Text;
 using It.Unina.Dis.Logbus;
 using System.Collections.Specialized;
 using System.Threading;
+using System.Collections;
 
 namespace LogbusCore
 {
     class Program
     {
-        static bool[] messages_rcvd;
+        static Dictionary<string, BitArray> messages_rcvd;
 
         static void Main(string[] args)
         {
+            messages_rcvd = new Dictionary<string, BitArray>();
+
             ILogBus logbus = LogbusSingletonHelper.Instance;
 
             logbus.MessageReceived += new SyslogMessageEventHandler(logbus_MessageReceived);
@@ -30,13 +33,13 @@ namespace LogbusCore
             if (e.Message.MessageId == "BENCH")
             {
                 int msgid = int.Parse(e.Message.Text);
-                messages_rcvd[msgid] = true;
+                messages_rcvd[e.Message.Host][msgid] = true;
             }
             else if (e.Message.MessageId == "RESET")
             {
-                Console.WriteLine("Preparing to receive {0} messages", e.Message.Text);
+                Console.WriteLine("Preparing to receive {0} messages from {1}", e.Message.Text, e.Message.Host);
                 int msgnum = int.Parse(e.Message.Text);
-                messages_rcvd = new bool[msgnum];
+                messages_rcvd.Add(e.Message.Host, new BitArray(msgnum));
             }
             else if (e.Message.MessageId == "END")
             {
@@ -45,10 +48,12 @@ namespace LogbusCore
                 Console.WriteLine();
 
                 int dropped = 0;
-                foreach (bool rcvd in messages_rcvd)
+                foreach (bool rcvd in messages_rcvd[e.Message.Host])
                     if (!rcvd) dropped++;
 
-                Console.WriteLine("Dropped {0} messages", dropped);
+                messages_rcvd.Remove(e.Message.Host);
+
+                Console.WriteLine("Dropped {0} messages for host {1}", dropped, e.Message.Host);
             }
         }
     }
