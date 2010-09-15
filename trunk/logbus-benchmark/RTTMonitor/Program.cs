@@ -77,7 +77,7 @@ namespace RTTMonitor
             double milliseconds = double.Parse(e.Message.Text,CultureInfo.InvariantCulture);
 
             double rtt = Math.Round(cur_millis - milliseconds, 3);
-            Console.WriteLine("Current RTT value: {0}", rtt);
+            Console.WriteLine("Current RTT value: {0}ms", rtt);
 
             if (filename != null)
                 using (TextWriter tw = new StreamWriter(File.OpenWrite(filename)))
