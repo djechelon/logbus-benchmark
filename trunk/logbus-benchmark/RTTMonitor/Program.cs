@@ -53,7 +53,7 @@ namespace RTTMonitor
             target = LoggerHelper.CreateDefaultCollector();
             source = ClientHelper.CreateDefaultClient(rtt_filter);
 
-            source.MessageReceived += new SyslogMessageEventHandler(source_MessageReceived);
+            source.MessageReceived += new EventHandler<SyslogMessageEventArgs>(source_MessageReceived);
             source.Start();
 
             while (true)
