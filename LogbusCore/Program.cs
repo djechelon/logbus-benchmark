@@ -19,7 +19,7 @@ namespace LogbusCore
 
             ILogBus logbus = LogbusSingletonHelper.Instance;
 
-            logbus.MessageReceived += new SyslogMessageEventHandler(logbus_MessageReceived);
+            logbus.MessageReceived += new EventHandler<SyslogMessageEventArgs>(logbus_MessageReceived);
 
             logbus.Start();
 
