@@ -17,25 +17,19 @@
  *  Documentation under Creative Commons 3.0 BY-SA License
 */
 
-using System;
-namespace It.Unina.Dis.Logbus
+namespace It.Unina.Dis.Logbus.Collectors
 {
     /// <summary>
-    /// Logbus inbound channel. Collects log messages and notifies Logbus core of new messages
+    /// A logger that doesn't log to anything.
+    /// Needed for internal purposes
     /// </summary>
-    public interface IInboundChannel
-        : ILogSource, IRunnable, IConfigurable, IDisposable
+    internal class NullCollector
+    : ILogCollector
     {
+        #region ILogCollector Membri di
 
-        /// <summary>
-        /// Descriptive name of Inbound channel
-        /// </summary>
-        string Name { get; set; }
+        void ILogCollector.SubmitMessage(SyslogMessage message) { }
 
-        /// <summary>
-        /// Notifies a parse error occurred
-        /// </summary>
-        event EventHandler<ParseErrorEventArgs> ParseError;
-
+        #endregion
     }
 }
