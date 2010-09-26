@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using It.Unina.Dis.Logbus;
+using It.Unina.Dis.Logbus.Collectors;
 using It.Unina.Dis.Logbus.Loggers;
 
 namespace SyslogSource
@@ -54,7 +55,7 @@ namespace SyslogSource
         {
             string host = System.Net.Dns.GetHostName();
 
-            ILogCollector server = LoggerHelper.CreateDefaultCollector();
+            ILogCollector server = CollectorHelper.CreateDefaultCollector();
             SyslogMessage start_msg = new SyslogMessage()
             {
                 Timestamp = DateTime.Now,
