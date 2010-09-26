@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using It.Unina.Dis.Logbus;
+using It.Unina.Dis.Logbus.Collectors;
 using It.Unina.Dis.Logbus.Loggers;
 using System.Threading;
 
@@ -33,7 +34,7 @@ namespace NoiseSource
 
             Console.WriteLine("Ready to send infinite messages with {0}ms timeout", timeout);
 
-            ILogCollector server = LoggerHelper.CreateDefaultCollector();
+            ILogCollector server = CollectorHelper.CreateDefaultCollector();
             string host = System.Net.Dns.GetHostName();
             while (true)
             {

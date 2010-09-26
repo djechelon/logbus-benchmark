@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using It.Unina.Dis.Logbus;
+using It.Unina.Dis.Logbus.Collectors;
 using It.Unina.Dis.Logbus.Loggers;
 using It.Unina.Dis.Logbus.Clients;
 using It.Unina.Dis.Logbus.Filters;
@@ -50,7 +51,7 @@ namespace RTTMonitor
 
             rtt_filter.filter = new FilterBase[] { pid_filter, id_filter };
 
-            target = LoggerHelper.CreateDefaultCollector();
+            target = CollectorHelper.CreateCollector();
             source = ClientHelper.CreateDefaultClient(rtt_filter);
 
             source.MessageReceived += new EventHandler<SyslogMessageEventArgs>(source_MessageReceived);
