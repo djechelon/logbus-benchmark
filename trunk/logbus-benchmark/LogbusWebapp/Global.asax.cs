@@ -6,15 +6,15 @@ namespace LogbusWebapp
 {
     public class Global : System.Web.HttpApplication
     {
-
-        protected void Application_Start(object sender, EventArgs e)
+        public override void Init()
         {
+            base.Init();
             ILogBus logbus = LogbusSingletonHelper.Instance;
             logbus.Start();
             try
             {
                 Application.Lock();
-                
+
                 Application[ChannelManagementService.APPLICATION_KEY] = logbus;
                 Application[ChannelSubscriptionService.APPLICATION_KEY] = logbus;
                 Application["LogbusInstance"] = logbus;
@@ -52,7 +52,8 @@ namespace LogbusWebapp
 
         protected void Application_End(object sender, EventArgs e)
         {
-            (Application["LogbusInstance"] as IDisposable).Dispose();
+            if (Application["LogbusInstance"] != null && Application["LogbusInstance"] is IDisposable)
+                ((IDisposable)Application["LogbusInstance"]).Dispose();
         }
     }
 }
