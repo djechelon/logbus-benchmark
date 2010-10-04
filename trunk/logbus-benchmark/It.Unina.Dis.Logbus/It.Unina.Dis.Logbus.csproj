@@ -185,7 +185,6 @@
     <Compile Include="OutTransports\SyslogTlsTransportFactory.cs" />
     <Compile Include="OutTransports\SyslogUdpTransport.cs" />
     <Compile Include="OutTransports\SyslogUdpTransportFactory.cs" />
-    <Compile Include="OutTransports\UdpClientExpire.cs" />
     <Compile Include="ParseErrorEventArgs.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <None Include="Schemas\logbus-configuration.cs" />
@@ -249,6 +248,8 @@
     <None Include="AutoClassDiagram.cd" />
     <None Include="Release.txt" />
     <None Include="Schemas\make-wsdl-skeleton.bat" />
+    <EmbeddedResource Include="Security\DefaultCertificate.p12">
+    </EmbeddedResource>
     <None Include="Web References\RemoteLogbus\ChannelInformation.datasource">
       <DependentUpon>Reference.map</DependentUpon>
     </None>
@@ -287,7 +288,7 @@
   -->
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties BuildVersion_UpdateAssemblyVersion="True" BuildVersion_BuildVersioningStyle="None.None.Increment.None" />
+      <UserProperties BuildVersion_BuildVersioningStyle="None.None.Increment.None" BuildVersion_UpdateAssemblyVersion="True" />
     </VisualStudio>
   </ProjectExtensions>
 </Project>
