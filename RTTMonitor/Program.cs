@@ -20,6 +20,7 @@ namespace RTTMonitor
         static ILogClient _source;
         static ILog _log;
         static readonly AutoResetEvent _ar = new AutoResetEvent(false);
+        private static volatile int _id = 0;
 
         static void Main(string[] args)
         {
@@ -56,42 +57,59 @@ namespace RTTMonitor
 
             while (true)
             {
+                _id++;
                 DateTime curTimestamp = DateTime.UtcNow;
                 double millis = (curTimestamp - DateTime.Today).TotalMilliseconds;
-                SyslogMessage message = new SyslogMessage(SyslogFacility.Local3, SyslogSeverity.Notice, millis.ToString(CultureInfo.InvariantCulture))
+                string text = _id.ToString(CultureInfo.InvariantCulture) + "_" + millis.ToString(CultureInfo.InvariantCulture);
+                SyslogMessage message = new SyslogMessage(SyslogFacility.Local3, SyslogSeverity.Notice, text)
                 {
                     MessageId = "RTT"
                 };
 
                 _target.SubmitMessage(message);
 
-                if (!_ar.WaitOne(5000))
+                if (!_ar.WaitOne(10000))
                 {
                     Console.WriteLine("RTT sent at {0} lost", curTimestamp);
                     _log.Warning("RTT sent at {0} lost", curTimestamp);
                     continue;
                 }
-
                 Thread.Sleep(3000);
             }
         }
 
         static void source_MessageReceived(object sender, SyslogMessageEventArgs e)
         {
-            double curMillis = (DateTime.UtcNow - DateTime.Today).TotalMilliseconds;
-            double milliseconds = double.Parse(e.Message.Text, CultureInfo.InvariantCulture);
+            try
+            {
+                string[] split = e.Message.Text.Split('_');
+                int msgId = int.Parse(split[0]);
+                if (msgId != _id)
+                {
+                    _log.Warning("Old message received");
+                    Console.WriteLine("Warning: old message received. It was already dropped");
+                    return;
+                }
 
-            double rtt = Math.Round(curMillis - milliseconds, 3);
-            Console.WriteLine("Current RTT value: {0,3}ms", rtt);
+                double curMillis = (DateTime.UtcNow - DateTime.Today).TotalMilliseconds;
+                double milliseconds = double.Parse(split[1], CultureInfo.InvariantCulture);
 
-            _log.Debug("RTT: {0,3}", rtt.ToString(CultureInfo.InvariantCulture));
+                double rtt = Math.Round(curMillis - milliseconds, 3);
+                Console.WriteLine("Current RTT value: {0,3}ms", rtt);
 
-            _ar.Set();
+                _log.Debug("RTT: {0,3}", rtt.ToString(CultureInfo.InvariantCulture));
+                _ar.Set();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error: {0}", ex);
+            }
         }
 
         static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
         {
             _source.Dispose();
+            Console.WriteLine("Program terminated");
         }
     }
 }
