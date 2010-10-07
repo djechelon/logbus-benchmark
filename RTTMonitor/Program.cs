@@ -16,10 +16,10 @@ namespace RTTMonitor
     /// </summary>
     class Program
     {
-        static ILogCollector _target;
-        static ILogClient _source;
-        static ILog _log;
-        static readonly AutoResetEvent _ar = new AutoResetEvent(false);
+        private static ILogCollector _target;
+        private static ILogClient _source;
+        private static ILog _log;
+        private static readonly AutoResetEvent _ar = new AutoResetEvent(false);
         private static volatile int _id = 0;
 
         static void Main(string[] args)
@@ -49,7 +49,7 @@ namespace RTTMonitor
                                           };
 
             _target = CollectorHelper.CreateCollector("udp");
-            _source = ClientHelper.CreateDefaultClient(hostFilter & pidFilter & idFilter);
+            _source = ClientHelper.CreateUnreliableClient(hostFilter & pidFilter & idFilter);
             _log = LoggerHelper.GetLogger("Logfile");
 
             _source.MessageReceived += source_MessageReceived;
@@ -86,16 +86,18 @@ namespace RTTMonitor
                 int msgId = int.Parse(split[0]);
                 if (msgId != _id)
                 {
-                    _log.Warning("Old message received");
+                    _log.Warning("Old message received (sent at {0})",
+                        // ReSharper disable PossibleInvalidOperationException
+                                 e.Message.Timestamp.Value.ToString(CultureInfo.GetCultureInfo("en-us")));
+                    // ReSharper restore PossibleInvalidOperationException
                     Console.WriteLine("Warning: old message received. It was already dropped");
-                    return;
                 }
 
                 double curMillis = (DateTime.UtcNow - DateTime.Today).TotalMilliseconds;
                 double milliseconds = double.Parse(split[1], CultureInfo.InvariantCulture);
 
                 double rtt = Math.Round(curMillis - milliseconds, 3);
-                Console.WriteLine("Current RTT value: {0,3}ms", rtt);
+                Console.WriteLine("Current RTT value: {0}ms", rtt.ToString("0.000"));
 
                 _log.Debug("RTT: {0,3}", rtt.ToString(CultureInfo.InvariantCulture));
                 _ar.Set();
