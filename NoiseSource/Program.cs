@@ -19,26 +19,40 @@ namespace NoiseSource
     {
         static void Main(string[] args)
         {
+            Console.CancelKeyPress += Console_CancelKeyPress;
             if (args == null || args.Length < 1)
             {
-                Console.WriteLine("Usage: NoiseSource TIMEOUT");
+                Console.WriteLine("Usage: NoiseSource ([MESSAGE_RATE]|\"inf\")");
+                Console.WriteLine();
+                Console.WriteLine();
+                Console.WriteLine("\tMESSAGE_RATE:\t number of messages sent per second");
+                Console.WriteLine();
+                Console.WriteLine();
+                Console.WriteLine("Example: \tNoiseSource 1500");
+                Console.WriteLine("sends 1500 messages per second");
+                Console.WriteLine("\tNoiseSource inf");
+                Console.WriteLine("sends infinite messages, flooding network socket");
                 Environment.Exit(0);
             }
+            int rate = 0;
 
-            int timeout;
-            if (!int.TryParse(args[0], out timeout))
+            if (args[0] != "inf" && !int.TryParse(args[0], out rate) || rate == 0)
             {
-                Console.WriteLine("Invalid timeout");
+                Console.WriteLine("Invalid rate");
                 Environment.Exit(1);
             }
+            long timeout = 10000 / rate; //100ns timeout
 
-            Console.WriteLine("Ready to send infinite messages with {0}ms timeout", timeout);
+            if (timeout == 0)
+                Console.WriteLine("Ready to send infinite messages at infinite rate");
+            else
+                Console.WriteLine("Ready to send infinite messages at a rate of {0}/s", rate);
 
-            ILogCollector server = CollectorHelper.CreateDefaultCollector();
+            ILogCollector server = CollectorHelper.CreateCollector();
             string host = System.Net.Dns.GetHostName();
             while (true)
             {
-                SyslogMessage start_msg = new SyslogMessage()
+                SyslogMessage startMsg = new SyslogMessage
                 {
                     Timestamp = DateTime.Now,
                     Facility = SyslogFacility.Printer,
@@ -47,10 +61,15 @@ namespace NoiseSource
                     MessageId = "NOISE",
                     Text = "The quick brown fox jumps over the lazy dog"
                 };
-                server.SubmitMessage(start_msg);
+                server.SubmitMessage(startMsg);
 
-                if (timeout > 0) Thread.Sleep(timeout);
+                if (rate > 0) Thread.Sleep(new TimeSpan(timeout));
             }
+        }
+
+        static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
+        {
+            Console.WriteLine("Program terminated");
         }
     }
 }
