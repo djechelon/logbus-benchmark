@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HeartbeatSource", "Heartbea
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Syslog2Csv", "Syslog2Csv\Syslog2Csv.csproj", "{6C939D66-7E22-42AB-87E2-EACA36664AB8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LossCounter", "LossCounter\LossCounter.csproj", "{2B85DFD5-A0C9-4E02-873C-F176DC9B4E04}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -119,6 +121,14 @@ Global
 		{6C939D66-7E22-42AB-87E2-EACA36664AB8}.Mono Release|Any CPU.Build.0 = Release|Any CPU
 		{6C939D66-7E22-42AB-87E2-EACA36664AB8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6C939D66-7E22-42AB-87E2-EACA36664AB8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2B85DFD5-A0C9-4E02-873C-F176DC9B4E04}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2B85DFD5-A0C9-4E02-873C-F176DC9B4E04}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2B85DFD5-A0C9-4E02-873C-F176DC9B4E04}.Mono Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2B85DFD5-A0C9-4E02-873C-F176DC9B4E04}.Mono Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2B85DFD5-A0C9-4E02-873C-F176DC9B4E04}.Mono Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2B85DFD5-A0C9-4E02-873C-F176DC9B4E04}.Mono Release|Any CPU.Build.0 = Release|Any CPU
+		{2B85DFD5-A0C9-4E02-873C-F176DC9B4E04}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2B85DFD5-A0C9-4E02-873C-F176DC9B4E04}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
