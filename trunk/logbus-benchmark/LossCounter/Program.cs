@@ -33,7 +33,7 @@ namespace LossCounter
             }
             int rate = 0;
 
-            if (args[0] != "inf" && !int.TryParse(args[0], out rate) || rate == 0)
+            if (args[1] != "inf" && !int.TryParse(args[1], out rate) || rate == 0)
             {
                 Console.WriteLine("Invalid rate");
                 Environment.Exit(1);
@@ -54,6 +54,7 @@ namespace LossCounter
         {
             _messagesRcvd = new BitArray(_expected, false);
             _received = 0;
+            string pid = Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture);
 
             ILogCollector server = CollectorHelper.CreateCollector();
             string host = Dns.GetHostName();
@@ -67,8 +68,7 @@ namespace LossCounter
             PropertyFilter pidFilter = new PropertyFilter
             {
                 comparison = ComparisonOperator.eq,
-                value =
-                    Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture),
+                value = pid,
                 propertyName = Property.ProcessID
             };
             PropertyFilter idFilter = new PropertyFilter
@@ -77,10 +77,10 @@ namespace LossCounter
                 comparison = ComparisonOperator.eq,
                 propertyName = Property.MessageID
             };
-            SeverityFilter sevFilter = new SeverityFilter()
+            SeverityFilter sevFilter = new SeverityFilter
                                            {
                                                comparison = ComparisonOperator.eq,
-                                               severity = Severity.Debug
+                                               severity = Severity.Notice
                                            };
             using (ILogClient client = ClientHelper.CreateUnreliableClient(hostFilter & pidFilter & idFilter & sevFilter & facFilter))
             {
@@ -90,12 +90,13 @@ namespace LossCounter
                 for (int i = 0; i < _expected; i++)
                 {
                     if (timeout > 0) Thread.Sleep(new TimeSpan(timeout));
-                    SyslogMessage message = new SyslogMessage()
+                    SyslogMessage message = new SyslogMessage
                                                 {
                                                     Timestamp = DateTime.Now,
                                                     Facility = SyslogFacility.Local4,
                                                     Severity = SyslogSeverity.Notice,
                                                     Host = host,
+                                                    ProcessID = pid,
                                                     MessageId = "BENCH",
                                                     Text = i.ToString()
                                                 };
