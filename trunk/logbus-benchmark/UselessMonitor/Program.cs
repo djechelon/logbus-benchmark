@@ -19,13 +19,15 @@ namespace UselessMonitor
     /// </summary>
     class Program
     {
-        static string[] chan_ids;
-        static IChannelManagement chan_manager;
+        private static string[] _chanIds;
+        private static IChannelManagement _chanManager;
+        private static ILogClient[] _clients;
 
         static void Main(string[] args)
         {
-            chan_manager = ClientHelper.CreateChannelManager();
-            Console.CancelKeyPress += new ConsoleCancelEventHandler(Console_CancelKeyPress);
+            _chanManager = ClientHelper.CreateChannelManager();
+
+            //Console.CancelKeyPress += Console_CancelKeyPress;
 
             if (args == null || args.Length < 1)
             {
@@ -46,31 +48,52 @@ namespace UselessMonitor
                 Environment.Exit(1);
             }
 
-            chan_ids = new string[chans];
-            for (int i = 0; i < chans; i++)
+            _chanIds = new string[chans];
+            _clients = new ILogClient[chans];
+
+            try
             {
-                string chan_id = string.Format("UM_{0}_{1}", Process.GetCurrentProcess().Id, i);
-                ChannelCreationInformation info = new ChannelCreationInformation()
+                for (int i = 0; i < chans; i++)
                 {
-                    coalescenceWindow = 0,
-                    description = "Automatic null channel",
-                    filter = new FalseFilter(),
-                    id = chan_id,
-                    title = "Auto"
-                };
-                chan_ids[i] = chan_id;
-                chan_manager.CreateChannel(info);
+                    string chanId = string.Format("UM_{0}_{1}", Process.GetCurrentProcess().Id, i);
+                    ChannelCreationInformation info = new ChannelCreationInformation
+                    {
+                        coalescenceWindow = 0,
+                        description = "Automatic null channel",
+                        filter = new TrueFilter(),
+                        id = chanId,
+                        title = "Auto"
+                    };
+                    _chanIds[i] = chanId;
+                    _chanManager.CreateChannel(info);
+
+                    _clients[i] = ClientHelper.CreateUnreliableClient(_chanIds[i]);
+                    _clients[i].Start();
+
+
+                }
+                Console.WriteLine("Created {0} channels to disturb Logbus. Press ENTER when you're done", chans);
+
+                Console.ReadLine();
+            }
+            finally
+            {
+                for (int i = 0; i < chans; i++)
+                {
+                    _clients[i].Dispose();
+                    _clients[i] = null;
+
+                    _chanManager.DeleteChannel(_chanIds[i]);
+                }
             }
 
-            Console.WriteLine("Created {0} channels to disturb Logbus. Exit when you're done", chans);
-
-            Thread.Sleep(Timeout.Infinite);
         }
 
+        /* Waiting for Mono CTRL+C bug to be fixed
         static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
         {
-            foreach (string id in chan_ids)
-                chan_manager.DeleteChannel(id);
-        }
+            foreach (string id in _chanIds)
+                _chanManager.DeleteChannel(id);
+        }*/
     }
 }
