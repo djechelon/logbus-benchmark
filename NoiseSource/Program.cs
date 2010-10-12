@@ -41,7 +41,7 @@ namespace NoiseSource
                 Console.WriteLine("Invalid rate");
                 Environment.Exit(1);
             }
-            long timeout = 10000 / rate; //100ns timeout
+            long timeout = 10000000 / rate; //100ns timeout
 
             if (timeout == 0)
                 Console.WriteLine("Ready to send infinite messages at infinite rate");
