@@ -19,13 +19,13 @@ namespace LossCounter
         private static readonly AutoResetEvent Stop = new AutoResetEvent(false);
 
 
-        [DllImport("libc.so")]
+        [DllImport("libc")]
         private extern static void nanosleep(ref timespec rqtp, ref timespec rmtp);
 
         internal struct timespec
         {
-            public int tv_sec;
-            public long tv_nsec;
+            public IntPtr tv_sec;
+            public IntPtr tv_nsec;
         }
 
         private static void Nanosleep(int ns)
@@ -34,8 +34,8 @@ namespace LossCounter
 
             timespec rqtp = new timespec
                        {
-                           tv_sec = 0,
-                           tv_nsec = ns
+                           tv_sec = new IntPtr(0),
+                           tv_nsec = new IntPtr(ns)
                        };
 
             timespec rmtp = new timespec();
