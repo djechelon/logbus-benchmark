@@ -19,7 +19,7 @@ namespace LossCounter
         private static readonly AutoResetEvent Stop = new AutoResetEvent(false);
 
 
-        [DllImport("libc")]
+        [DllImport("libc.so.6")]
         private extern static void nanosleep(ref timespec rqtp, ref timespec rmtp);
 
         internal struct timespec
