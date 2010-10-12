@@ -8,6 +8,7 @@ using It.Unina.Dis.Logbus.Clients;
 using It.Unina.Dis.Logbus.Filters;
 using It.Unina.Dis.Logbus.Collectors;
 using System.Threading;
+using System.Runtime.InteropServices;
 
 namespace LossCounter
 {
@@ -16,6 +17,31 @@ namespace LossCounter
         private static BitArray _messagesRcvd;
         private static int _received, _expected;
         private static readonly AutoResetEvent Stop = new AutoResetEvent(false);
+
+
+        [DllImport("libc.so")]
+        private extern static void nanosleep(ref timespec rqtp, ref timespec rmtp);
+
+        internal struct timespec
+        {
+            public int tv_sec;
+            public long tv_nsec;
+        }
+
+        private static void Nanosleep(int ns)
+        {
+            if (Environment.OSVersion.Platform != PlatformID.Unix) throw new PlatformNotSupportedException("Only in Mono/Unix");
+
+            timespec rqtp = new timespec
+                       {
+                           tv_sec = 0,
+                           tv_nsec = ns
+                       };
+
+            timespec rmtp = new timespec();
+
+            nanosleep(ref rqtp, ref rmtp);
+        }
 
         static void Main(string[] args)
         {
@@ -40,17 +66,17 @@ namespace LossCounter
             }
 
 
-            long timeout = 10000000 / rate; //100ns timeout
+            int timeout = 1000000000 / rate; //1ns timeout
             if (timeout == 0)
                 Console.WriteLine("Ready to send {0} messages at infinite rate", _expected);
             else
-                Console.WriteLine("Ready to send {0} messages at a rate of {1}/s", _expected, rate);
+                Console.WriteLine("Ready to send {0} messages at a rate of {1}/s, timeout {2}ns", _expected, rate, timeout);
 
             Run(timeout);
             Console.WriteLine("Completed");
         }
 
-        private static void Run(long timeout)
+        private static void Run(int timeout)
         {
             _messagesRcvd = new BitArray(_expected, false);
             _received = 0;
@@ -89,7 +115,7 @@ namespace LossCounter
 
                 for (int i = 0; i < _expected; i++)
                 {
-                    if (timeout > 0) Thread.Sleep(new TimeSpan(timeout));
+                    if (timeout > 0) Nanosleep(timeout);
                     SyslogMessage message = new SyslogMessage
                                                 {
                                                     Timestamp = DateTime.Now,
