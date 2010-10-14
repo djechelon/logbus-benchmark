@@ -24,9 +24,21 @@ namespace RTTMonitor
 
         static void Main(string[] args)
         {
+            bool reliable = args != null && args.Length > 0 && args[0] == "--reliable";
+
             Console.CancelKeyPress += Console_CancelKeyPress;
 
             Console.WriteLine("This program periodically measures the RTT for log messages sent by here");
+
+            if (!reliable)
+            {
+                Console.WriteLine("Going in unreliable mode. Messages are subject to loss.");
+                Console.WriteLine("Use the --reliable switch to go into reliable mode, where messages don't get lost.");
+            }
+            else
+            {
+                Console.WriteLine("Reliable mode activated. No messages will be lost because of the network.");
+            }
 
             PropertyFilter hostFilter = new PropertyFilter
                                             {
@@ -48,8 +60,9 @@ namespace RTTMonitor
                                               propertyName = Property.MessageID
                                           };
 
-            _target = CollectorHelper.CreateCollector("udp");
-            _source = ClientHelper.CreateUnreliableClient(hostFilter & pidFilter & idFilter);
+            _target = CollectorHelper.CreateCollector((reliable) ? "udp" : "tls");
+            FilterBase filter = hostFilter & pidFilter & idFilter;
+            _source = (reliable) ? ClientHelper.CreateReliableClient(filter) : ClientHelper.CreateUnreliableClient(filter);
             _log = LoggerHelper.GetLogger("Logfile");
 
             _source.MessageReceived += source_MessageReceived;
