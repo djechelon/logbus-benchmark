@@ -60,7 +60,7 @@ namespace RTTMonitor
                                               propertyName = Property.MessageID
                                           };
 
-            _target = CollectorHelper.CreateCollector((reliable) ? "udp" : "tls");
+            _target = CollectorHelper.CreateCollector((reliable) ? "tls" : "udp");
             FilterBase filter = hostFilter & pidFilter & idFilter;
             _source = (reliable) ? ClientHelper.CreateReliableClient(filter) : ClientHelper.CreateUnreliableClient(filter);
             _log = LoggerHelper.GetLogger("Logfile");
