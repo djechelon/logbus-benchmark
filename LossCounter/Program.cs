@@ -108,7 +108,7 @@ namespace LossCounter
                                                comparison = ComparisonOperator.eq,
                                                severity = Severity.Notice
                                            };
-            using (ILogClient client = ClientHelper.CreateUnreliableClient(hostFilter & pidFilter & idFilter & sevFilter & facFilter))
+            using (ILogClient client = ClientHelper.CreateReliableClient(hostFilter & pidFilter & idFilter & sevFilter & facFilter))
             {
                 client.MessageReceived += client_MessageReceived;
                 client.Start();
