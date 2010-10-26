@@ -34,7 +34,6 @@ namespace It.Unina.Dis.Logbus.Collectors
         #region Constrcutor
         public SyslogUdpCollector()
         {
-            _client = new UdpClient();
         }
 
         public SyslogUdpCollector(string host, int port)
@@ -48,9 +47,9 @@ namespace It.Unina.Dis.Logbus.Collectors
         }
 
         public SyslogUdpCollector(IPEndPoint endpoint)
-            : this()
         {
             RemoteEndPoint = endpoint;
+            _client = new UdpClient(RemoteEndPoint.AddressFamily);
         }
 
         ~SyslogUdpCollector()
@@ -65,19 +64,40 @@ namespace It.Unina.Dis.Logbus.Collectors
         private IPAddress _remoteAddr;
         private int _port;
         private IAsyncResult _result;
+        private volatile bool _disposed = false;
 
         #region ILogCollector Membri di
 
         public void SubmitMessage(SyslogMessage message)
         {
+            if (_disposed)
+                throw new ObjectDisposedException(GetType().FullName);
+
             if (RemoteEndPoint == null)
             {
                 if (_port == 0 || _remoteAddr == null)
                     throw new InvalidOperationException("Logger is not configured");
 
-                RemoteEndPoint = new IPEndPoint(_remoteAddr, _port);
+                lock (this)
+                {
+                    if (RemoteEndPoint == null)
+                    {
+                        RemoteEndPoint = new IPEndPoint(_remoteAddr, _port);
+                    }
+                }
+
             }
 
+            if (_client == null)
+            {
+                lock (this)
+                {
+                    if (_client == null)
+                    {
+                        _client = new UdpClient(RemoteEndPoint.AddressFamily);
+                    }
+                }
+            }
 
             byte[] payload = Encoding.UTF8.GetBytes(message.ToRfc5424String());
             try
@@ -107,6 +127,8 @@ namespace It.Unina.Dis.Logbus.Collectors
         {
             GC.SuppressFinalize(this);
 
+            _disposed = true;
+
             if (_client != null && _result != null)
                 _client.EndSend(_result);
 
@@ -122,6 +144,9 @@ namespace It.Unina.Dis.Logbus.Collectors
 
         public string GetConfigurationParameter(string key)
         {
+            if (_disposed)
+                throw new ObjectDisposedException(GetType().FullName);
+
             if (string.IsNullOrEmpty(key))
                 throw new ArgumentNullException("key", "Key cannot be null");
             switch (key)
@@ -142,6 +167,9 @@ namespace It.Unina.Dis.Logbus.Collectors
 
         public void SetConfigurationParameter(string key, string value)
         {
+            if (_disposed)
+                throw new ObjectDisposedException(GetType().FullName);
+
             if (string.IsNullOrEmpty(key))
                 throw new ArgumentNullException("key", "Key cannot be null");
             if (string.IsNullOrEmpty(value))
@@ -153,12 +181,14 @@ namespace It.Unina.Dis.Logbus.Collectors
                         try
                         {
                             _remoteAddr = IPAddress.Parse(value);
+                            RemoteEndPoint = null;
                         }
                         catch (Exception ex)
                         {
                             try
                             {
                                 _remoteAddr = Dns.GetHostEntry(value).AddressList[0];
+                                RemoteEndPoint = null;
                                 break;
                             }
                             catch { }
@@ -174,6 +204,7 @@ namespace It.Unina.Dis.Logbus.Collectors
                             _port = int.Parse(value);
                             if (_port < 0 || _port > 65535)
                                 throw new ArgumentOutOfRangeException("value", _port, "Port must be between 0 and 65535");
+                            RemoteEndPoint = null;
                         }
                         catch (ArgumentOutOfRangeException)
                         {
@@ -192,10 +223,13 @@ namespace It.Unina.Dis.Logbus.Collectors
             }
         }
 
-        public System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string>> Configuration
+        public IEnumerable<KeyValuePair<string, string>> Configuration
         {
             set
             {
+                if (_disposed)
+                    throw new ObjectDisposedException(GetType().FullName);
+
                 foreach (KeyValuePair<string, string> kvp in value)
                     SetConfigurationParameter(kvp.Key, kvp.Value);
             }
