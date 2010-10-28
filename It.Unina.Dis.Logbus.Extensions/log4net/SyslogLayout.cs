@@ -17,28 +17,33 @@
  *  Documentation under Creative Commons 3.0 BY-SA License
 */
 
-using log4net;
-using log4net.Layout;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Net;
 using log4net.Core;
+using log4net.Layout;
+
 namespace It.Unina.Dis.Logbus.log4net
 {
+    /// <summary>
+    /// Log4net layout class for Syslog 2009 format
+    /// </summary>
     public sealed class SyslogLayout
         : ILayout
     {
-
+        /// <summary>
+        /// Initializes a new instance of SyslogLayout
+        /// </summary>
         public SyslogLayout()
         {
             Facility = SyslogFacility.User;
         }
 
-        public SyslogFacility Facility
-        {
-            get;
-            set;
-        }
+        /// <summary>
+        /// Facility for SyslogLayout messages
+        /// </summary>
+        public SyslogFacility Facility { get; set; }
 
         #region ILayout Membri di
 
@@ -52,7 +57,7 @@ namespace It.Unina.Dis.Logbus.log4net
             get { return string.Empty; }
         }
 
-        void ILayout.Format(System.IO.TextWriter writer, global::log4net.Core.LoggingEvent loggingEvent)
+        void ILayout.Format(TextWriter writer, LoggingEvent loggingEvent)
         {
             SyslogSeverity severity;
             int level = loggingEvent.Level.Value;
@@ -74,12 +79,14 @@ namespace It.Unina.Dis.Logbus.log4net
             else
                 severity = SyslogSeverity.Emergency;
 
-            SyslogMessage message = new SyslogMessage(Dns.GetHostName(), SyslogFacility.User, severity, loggingEvent.MessageObject.ToString())
-            {
-                MessageId = "log4net",
-                ProcessID = Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture),
-                ApplicationName = Process.GetCurrentProcess().ProcessName
-            };
+            SyslogMessage message = new SyslogMessage(Dns.GetHostName(), SyslogFacility.User, severity,
+                                                      loggingEvent.MessageObject.ToString())
+                                        {
+                                            MessageId = "log4net",
+                                            ProcessID =
+                                                Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture),
+                                            ApplicationName = Process.GetCurrentProcess().ProcessName
+                                        };
 
             writer.WriteLine(message.ToRfc5424String());
         }

@@ -19,7 +19,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace
@@ -34,7 +33,6 @@ namespace
         FastFifoQueue<T>
         : IFifoQueue<T> where T : class
     {
-
         private T[] _array;
         private int _head, _tail, _count;
         private readonly int _capacity;
@@ -43,12 +41,14 @@ namespace
         private readonly Semaphore _readSema, _writeSema;
 
         #region Constructor
+
         /// <summary>
         /// Initializes a new instance of FastFifoQueue
         /// </summary>
         public FastFifoQueue()
             : this(512)
-        { }
+        {
+        }
 
         /// <summary>
         /// Initializes FastFifoQueue with the specified capacity
@@ -78,7 +78,7 @@ namespace
         /* Credit to Dan Tao and Les from stackoverflow.com
          * http://stackoverflow.com/questions/3898204/can-a-c-blocking-fifo-queue-leak-messages-whats-wrong-in-my-code */
 
-        public void Enqueue(T item)
+        void IFifoQueue<T>.Enqueue(T item)
         {
             if (_disposed) throw new ObjectDisposedException(GetType().FullName);
             if (item == null) throw new ArgumentNullException("item");
@@ -94,10 +94,9 @@ namespace
             Interlocked.Increment(ref _count);
 
             _readSema.Release();
-
         }
 
-        public T Dequeue()
+        T IFifoQueue<T>.Dequeue()
         {
             if (_disposed) throw new ObjectDisposedException(GetType().FullName);
 
@@ -115,7 +114,7 @@ namespace
             return ret;
         }
 
-        public int Count
+        int IFifoQueue<T>.Count
         {
             get
             {
@@ -124,13 +123,13 @@ namespace
             }
         }
 
-        public T[] Flush()
+        T[] IFifoQueue<T>.Flush()
         {
             if (_disposed) throw new ObjectDisposedException(GetType().FullName);
             return FlushInternal();
         }
 
-        public T[] FlushAndDispose()
+        T[] IFifoQueue<T>.FlushAndDispose()
         {
             if (_disposed) throw new ObjectDisposedException(GetType().FullName);
 
@@ -150,6 +149,9 @@ namespace
 
         #region IDisposable Membri di
 
+        /// <summary>
+        /// Implements IDisposable.Dispose
+        /// </summary>
         public void Dispose()
         {
             _disposed = true;

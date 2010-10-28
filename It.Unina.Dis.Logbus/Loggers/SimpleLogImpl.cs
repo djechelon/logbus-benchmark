@@ -18,11 +18,13 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using System.Collections.Generic;
-using System.Threading;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using It.Unina.Dis.Logbus.Utils;
+
 namespace It.Unina.Dis.Logbus.Loggers
 {
     /// <summary>
@@ -47,6 +49,7 @@ namespace It.Unina.Dis.Logbus.Loggers
         private volatile Int32 _sequenceId = 1;
 
         #region Constructor
+
         /// <summary>
         /// Default constructor
         /// </summary>
@@ -84,12 +87,18 @@ namespace It.Unina.Dis.Logbus.Loggers
         /// </summary>
         /// <param name="target">Ultimate destination of messages</param>
         public SimpleLogImpl(ILogCollector target)
-            : this(SyslogFacility.Local4, target) { }
+            : this(SyslogFacility.Local4, target)
+        {
+        }
 
+        /// <summary>
+        /// Destroys SimpleLogImpl
+        /// </summary>
         ~SimpleLogImpl()
         {
             if (_heartbeatTimer != null) _heartbeatTimer.Dispose();
         }
+
         #endregion
 
         /// <summary>
@@ -106,7 +115,7 @@ namespace It.Unina.Dis.Logbus.Loggers
                 if (value == 0)
                     _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
                 else
-                    _heartbeatTimer.Change(value * 1000, value * 1000);
+                    _heartbeatTimer.Change(value*1000, value*1000);
             }
         }
 
@@ -135,13 +144,13 @@ namespace It.Unina.Dis.Logbus.Loggers
                     String appname = Process.GetCurrentProcess().ProcessName;
 
                     SyslogMessage msg = new SyslogMessage(host, Facility, SyslogSeverity.Debug, null)
-                    {
-                        ProcessID = procid,
-                        ApplicationName = appname,
-                        MessageId = "HEARTBEAT"
-                    };
+                                            {
+                                                ProcessID = procid,
+                                                ApplicationName = appname,
+                                                MessageId = "HEARTBEAT"
+                                            };
 
-                    PreProcessMessage(ref msg);
+                    PreProcessMessage(msg);
 
                     msg.Data.Remove("origin");
                     msg.Data.Remove("timeQuality");
@@ -157,7 +166,11 @@ namespace It.Unina.Dis.Logbus.Loggers
             }
         }
 
-        protected virtual void PreProcessMessage(ref SyslogMessage msg)
+        /// <summary>
+        /// Processes the message before sending, adding contextual information
+        /// </summary>
+        /// <param name="msg">Message that is going to be sent</param>
+        protected virtual void PreProcessMessage(SyslogMessage msg)
         {
             // Getting the caller information (note that index is 3 because of Log is called by another local Method... 
             StackTrace stackTrace = new StackTrace();
@@ -182,10 +195,10 @@ namespace It.Unina.Dis.Logbus.Loggers
             //Originator information
             Dictionary<string, string> origin = new Dictionary<string, string>();
             msg.Data.Add("origin", origin);
-            origin.Add("ip", Utils.NetworkUtils.GetMyIPAddress().ToString());
+            origin.Add("ip", NetworkUtils.GetMyIPAddress().ToString());
             origin.Add("enterpriseId", ENTERPRISE_ID);
             origin.Add("software", "Logbus-ng-sharp");
-            origin.Add("swVersion", typeof(SimpleLogImpl).Assembly.GetName().Version.ToString(3));
+            origin.Add("swVersion", typeof (SimpleLogImpl).Assembly.GetName().Version.ToString(3));
 
             //Meta-info
             Dictionary<string, string> meta = new Dictionary<string, string>();
@@ -200,41 +213,43 @@ namespace It.Unina.Dis.Logbus.Loggers
             long upTime;
             using (PerformanceCounter uptime = new PerformanceCounter("System", "System Up Time"))
             {
-                uptime.NextValue();       //Call this an extra time before reading its value
-                upTime = (long)Math.Round(TimeSpan.FromSeconds(uptime.NextValue()).TotalMilliseconds / 10);
+                uptime.NextValue(); //Call this an extra time before reading its value
+                upTime = (long) Math.Round(TimeSpan.FromSeconds(uptime.NextValue()).TotalMilliseconds/10);
             }
             meta.Add("sysUpTime", upTime.ToString(CultureInfo.InvariantCulture));
 #endif
         }
 
+        /// <summary>
+        /// Concretely performs logging
+        /// </summary>
+        /// <param name="message">Text message</param>
+        /// <param name="severity">Severity of message</param>
         protected virtual void Log(string message, SyslogSeverity severity)
         {
             //Reset heartbeating
             if (_hbInterval > 0)
-                _heartbeatTimer.Change(HeartbeatInterval * 1000, HeartbeatInterval * 1000);
+                _heartbeatTimer.Change(HeartbeatInterval*1000, HeartbeatInterval*1000);
 
             String host = Environment.MachineName;
             String procid = Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture);
             String appname = Process.GetCurrentProcess().ProcessName;
 
             SyslogMessage msg = new SyslogMessage(host, Facility, severity, message)
-            {
-                ProcessID = procid,
-                ApplicationName = appname
-            };
+                                    {
+                                        ProcessID = procid,
+                                        ApplicationName = appname
+                                    };
 
-            PreProcessMessage(ref msg);
+            PreProcessMessage(msg);
 
             Collector.SubmitMessage(msg);
         }
 
         #region ILog Membri di
 
-        public string LogName
-        {
-            get;
-            set;
-        }
+        /// <remarks/>
+        public string LogName { get; set; }
 
         void ILog.Debug(string message)
         {
@@ -276,42 +291,42 @@ namespace It.Unina.Dis.Logbus.Loggers
             Log(message, SyslogSeverity.Emergency);
         }
 
-        public void Debug(string format, params object[] args)
+        void ILog.Debug(string format, params object[] args)
         {
             Log(string.Format(format, args), SyslogSeverity.Debug);
         }
 
-        public void Info(string format, params object[] args)
+        void ILog.Info(string format, params object[] args)
         {
             Log(string.Format(format, args), SyslogSeverity.Info);
         }
 
-        public void Notice(string format, params object[] args)
+        void ILog.Notice(string format, params object[] args)
         {
             Log(string.Format(format, args), SyslogSeverity.Notice);
         }
 
-        public void Warning(string format, params object[] args)
+        void ILog.Warning(string format, params object[] args)
         {
             Log(string.Format(format, args), SyslogSeverity.Warning);
         }
 
-        public void Error(string format, params object[] args)
+        void ILog.Error(string format, params object[] args)
         {
             Log(string.Format(format, args), SyslogSeverity.Error);
         }
 
-        public void Critical(string format, params object[] args)
+        void ILog.Critical(string format, params object[] args)
         {
             Log(string.Format(format, args), SyslogSeverity.Critical);
         }
 
-        public void Alert(string format, params object[] args)
+        void ILog.Alert(string format, params object[] args)
         {
             Log(string.Format(format, args), SyslogSeverity.Alert);
         }
 
-        public void Emergency(string format, params object[] args)
+        void ILog.Emergency(string format, params object[] args)
         {
             Log(string.Format(format, args), SyslogSeverity.Emergency);
         }

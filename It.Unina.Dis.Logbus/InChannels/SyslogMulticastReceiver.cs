@@ -18,15 +18,17 @@
 */
 
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+
 namespace It.Unina.Dis.Logbus.InChannels
 {
     /// <summary>
     /// Receives Syslog messages from a Multicast UDP socket
     /// </summary>
     internal class SyslogMulticastReceiver
-        :IInboundChannel
+        : IInboundChannel
     {
-
         /// <remarks/>
         public SyslogMulticastReceiver()
         {
@@ -35,83 +37,75 @@ namespace It.Unina.Dis.Logbus.InChannels
 
         #region IInboundChannel Membri di
 
-        /// <remarks/>
         public string Name
         {
-            get;
-            set;
+            get { throw new NotImplementedException(); }
+            set { throw new NotImplementedException(); }
         }
 
-        /// <remarks/>
+        public event EventHandler<ParseErrorEventArgs> ParseError;
+
+        #endregion
+
+        #region ILogSource Membri di
+
+        public event EventHandler<SyslogMessageEventArgs> MessageReceived;
+
+        #endregion
+
+        #region IRunnable Membri di
+
+        public event EventHandler<CancelEventArgs> Starting;
+
+        public event EventHandler<CancelEventArgs> Stopping;
+
+        public event EventHandler Started;
+
+        public event EventHandler Stopped;
+
+        public event UnhandledExceptionEventHandler Error;
+
         public void Start()
         {
             throw new NotImplementedException();
         }
 
-        /// <remarks/>
         public void Stop()
         {
             throw new NotImplementedException();
         }
 
-        /// <remarks/>
-        public event EventHandler<SyslogMessageEventArgs> MessageReceived;
-
-        /// <remarks/>
-        public event EventHandler<ParseErrorEventArgs> ParseError;
-
-        /// <remarks/>
-        public System.Collections.Generic.IDictionary<string, string> Configuration
+        public bool Running
         {
             get { throw new NotImplementedException(); }
         }
 
-        /// <remarks/>
-        public event EventHandler<System.ComponentModel.CancelEventArgs> Starting;
-
-        /// <remarks/>
-        public event EventHandler<System.ComponentModel.CancelEventArgs> Stopping;
-
-        /// <remarks/>
-        public event EventHandler Started;
-
-        /// <remarks/>
-        public event EventHandler Stopped;
-
-        /// <remarks/>
-        public event UnhandledExceptionEventHandler Error;
-
         #endregion
-
-        #region IDisposable Membri di
-
-        /// <remarks/>
-        public void Dispose()
-        {
-            throw new NotImplementedException();
-        }
-
-        #endregion
-
 
         #region IConfigurable Membri di
 
-        /// <remarks/>
         public string GetConfigurationParameter(string key)
         {
             throw new NotImplementedException();
         }
 
-        /// <remarks/>
         public void SetConfigurationParameter(string key, string value)
         {
             throw new NotImplementedException();
         }
 
-        /// <remarks/>
-        System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string>> IConfigurable.Configuration
+        public IEnumerable<KeyValuePair<string, string>> Configuration
         {
             set { throw new NotImplementedException(); }
+        }
+
+        #endregion
+
+        #region IDisposable Membri di
+
+        public void Dispose()
+        {
+            throw new NotImplementedException();
         }
 
         #endregion
