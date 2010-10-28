@@ -23,18 +23,23 @@ using It.Unina.Dis.Logbus.Wrappers;
 
 namespace It.Unina.Dis.Logbus.WebServices
 {
+    /// <summary>
+    /// Web application class for Global.asax
+    /// </summary>
     public class LogbusWebApplication : HttpApplication
     {
+        /// <remarks/>
         protected void Application_Start(object sender, EventArgs e)
         {
             ILogBus logbus;
             object wrapper = AppDomain.CurrentDomain.GetData("Logbus");
             if (wrapper != null && wrapper is ILogBus)
-                logbus = (ILogBus)wrapper;
+                logbus = (ILogBus) wrapper;
             else
             {
                 logbus = LogbusSingletonHelper.Instance;
-                AppDomain.CurrentDomain.SetData("Logbus", (logbus is MarshalByRefObject) ? logbus : new LogBusTie(logbus));
+                AppDomain.CurrentDomain.SetData("Logbus",
+                                                (logbus is MarshalByRefObject) ? logbus : new LogBusTie(logbus));
                 logbus.Start();
             }
 
@@ -64,31 +69,32 @@ namespace It.Unina.Dis.Logbus.WebServices
             }
         }
 
+        /// <remarks/>
         protected void Session_Start(object sender, EventArgs e)
         {
-
         }
 
+        /// <remarks/>
         protected void Application_BeginRequest(object sender, EventArgs e)
         {
-
         }
 
+        /// <remarks/>
         protected void Application_AuthenticateRequest(object sender, EventArgs e)
         {
-
         }
 
+        /// <remarks/>
         protected void Application_Error(object sender, EventArgs e)
         {
-
         }
 
+        /// <remarks/>
         protected void Session_End(object sender, EventArgs e)
         {
-
         }
 
+        /// <remarks/>
         protected void Application_End(object sender, EventArgs e)
         {
             ((IDisposable) Application["LogbusInstance"]).Dispose();
