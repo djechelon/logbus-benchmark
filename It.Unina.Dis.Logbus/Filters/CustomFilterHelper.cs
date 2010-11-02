@@ -57,6 +57,13 @@ namespace It.Unina.Dis.Logbus.Filters
 
             //Load builtin filters
             ScanAssemblyAndRegister(GetType().Assembly);
+
+            //As a gift, add filters by the Logbus-ng team
+            try
+            {
+                ScanAssemblyAndRegister(Assembly.Load(new AssemblyName("It.Unina.Dis.Logbus.Extensions")));
+            }
+            catch { }//Don't worry
         }
 
         private readonly Dictionary<string, string> _registeredTypes, _registeredDescriptions;
@@ -71,7 +78,7 @@ namespace It.Unina.Dis.Logbus.Filters
             foreach (Type t in assemblyToScan.GetTypes())
             {
                 string typename = t.AssemblyQualifiedName;
-                object[] customAttrs = t.GetCustomAttributes(typeof (CustomFilterAttribute), false);
+                object[] customAttrs = t.GetCustomAttributes(typeof(CustomFilterAttribute), false);
                 if (customAttrs.Length < 1) continue;
                 CustomFilterAttribute attr = customAttrs[0] as CustomFilterAttribute;
 
@@ -87,7 +94,7 @@ namespace It.Unina.Dis.Logbus.Filters
         public void RegisterCustomFilter(Type t)
         {
             if (t == null) throw new ArgumentNullException("t");
-            object[] customAttrs = t.GetCustomAttributes(typeof (CustomFilterAttribute), false);
+            object[] customAttrs = t.GetCustomAttributes(typeof(CustomFilterAttribute), false);
 
             if (customAttrs.Length < 1)
                 throw new ArgumentException("Given type is not decorated with CustomFilterAttribute");
@@ -96,7 +103,7 @@ namespace It.Unina.Dis.Logbus.Filters
             if (attr != null)
             {
                 string typeName = t.AssemblyQualifiedName;
-                if (!typeof (ICustomFilter).IsAssignableFrom(t))
+                if (!typeof(ICustomFilter).IsAssignableFrom(t))
                 {
                     LogbusException ex = new LogbusException("Given type does not implement ICustomFilter");
                     ex.Data.Add("typeName", t);
@@ -128,7 +135,7 @@ namespace It.Unina.Dis.Logbus.Filters
             {
                 Type filterType = Type.GetType(typeName);
 
-                if (!typeof (ICustomFilter).IsAssignableFrom(filterType))
+                if (!typeof(ICustomFilter).IsAssignableFrom(filterType))
                 {
                     LogbusException ex = new LogbusException("Given type does not implement ICustomFilter");
                     ex.Data.Add("typeName", typeName);
@@ -169,6 +176,25 @@ namespace It.Unina.Dis.Logbus.Filters
             Type filterType = Type.GetType(_registeredTypes[tag]);
             ICustomFilter ret = Activator.CreateInstance(filterType) as ICustomFilter;
             if (parameters != null) ret.Configuration = parameters;
+            return ret;
+        }
+
+        /// <summary>
+        /// Constructs a filter for the given tag but with no properties
+        /// </summary>
+        /// <param name="tag">Unique tag of filter</param>
+        /// <returns>A new instance of the requested custom filter</returns>
+        public IFilter BuildFilter(string tag)
+        {
+            if (string.IsNullOrEmpty(tag)) throw new ArgumentNullException("tag");
+
+            if (!_registeredTypes.ContainsKey(tag))
+            {
+                throw new LogbusException(string.Format("No filter registered for tag {0}", tag));
+            }
+
+            Type filterType = Type.GetType(_registeredTypes[tag]);
+            IFilter ret = Activator.CreateInstance(filterType) as IFilter;
             return ret;
         }
 

@@ -17,9 +17,6 @@
  *  Documentation under Creative Commons 3.0 BY-SA License
 */
 
-#if X64
-using COUNTER_TYPE = System.Int64;
-#else
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -33,9 +30,8 @@ using It.Unina.Dis.Logbus.OutChannels;
 using It.Unina.Dis.Logbus.OutTransports;
 using It.Unina.Dis.Logbus.RemoteLogbus;
 using It.Unina.Dis.Logbus.Utils;
-using COUNTER_TYPE = System.Int32;
 using KeyValuePair = It.Unina.Dis.Logbus.Configuration.KeyValuePair;
-#endif
+using System.Reflection;
 
 namespace It.Unina.Dis.Logbus
 {
@@ -51,7 +47,7 @@ namespace It.Unina.Dis.Logbus
         private Thread _forwardingThread;
         private const int WORKER_THREADS = 4;
         private bool _configured, _forwardingEnabled;
-        private COUNTER_TYPE _currentQueue;
+        private int _currentQueue;
 
         private List<IInboundChannel> _inChans;
         private readonly List<IOutboundChannel> _outChans;
@@ -89,7 +85,7 @@ namespace It.Unina.Dis.Logbus
             Log = new SimpleLogImpl(SyslogFacility.Internally, this);
 
             //Init fresh queues
-            _currentQueue = COUNTER_TYPE.MinValue;
+            _currentQueue = int.MinValue;
             Queues = new IFifoQueue<SyslogMessage>[WORKER_THREADS];
             for (int i = 0; i < WORKER_THREADS; i++)
                 Queues[i] = new FastFifoQueue<SyslogMessage>(2048);
@@ -125,6 +121,7 @@ namespace It.Unina.Dis.Logbus
         /// <summary>
         /// Automatically configures Logbus using the App.Config or Web.config's XML configuration
         /// </summary>
+        /// <exception cref="NotImplementedException"></exception>
         /// <exception cref="System.InvalidOperationException">Logbus was already configured</exception>
         /// <exception cref="System.NotSupportedException">Empty configuration</exception>
         /// <exception cref="It.Unina.Dis.Logbus.Configuration.LogbusConfigurationException">Semantic error in configuration</exception>
@@ -155,8 +152,7 @@ namespace It.Unina.Dis.Logbus
                         //Try to instantiate
                         Type factoryType = Type.GetType(Configuration.outChannelFactoryType, true, false);
 
-
-                        if (!factoryType.IsAssignableFrom(typeof (IOutboundChannelFactory)))
+                        if (!factoryType.IsAssignableFrom(typeof(IOutboundChannelFactory)))
                         {
                             LogbusConfigurationException ex =
                                 new LogbusConfigurationException(
@@ -176,7 +172,7 @@ namespace It.Unina.Dis.Logbus
                     }
                 }
                 if (ChannelFactory is ILogSupport)
-                    ((ILogSupport) ChannelFactory).Log = new SimpleLogImpl(SyslogFacility.Internally, this);
+                    ((ILogSupport)ChannelFactory).Log = new SimpleLogImpl(SyslogFacility.Internally, this);
 
                 //Inbound channels
                 List<IInboundChannel> channels = new List<IInboundChannel>();
@@ -211,14 +207,14 @@ namespace It.Unina.Dis.Logbus
 
                             Type inChanType = Type.GetType(typename, true, false);
 
-                            if (!typeof (IInboundChannel).IsAssignableFrom(inChanType))
+                            if (!typeof(IInboundChannel).IsAssignableFrom(inChanType))
                             {
                                 LogbusConfigurationException ex =
                                     new LogbusConfigurationException(
                                         "Specified type for Inbound channel does not implement IInboundChannel");
                                 ex.Data["TypeName"] = typename;
                             }
-                            IInboundChannel channel = (IInboundChannel) Activator.CreateInstance(inChanType, true);
+                            IInboundChannel channel = (IInboundChannel)Activator.CreateInstance(inChanType, true);
                             try
                             {
                                 if (def.param != null)
@@ -243,7 +239,7 @@ namespace It.Unina.Dis.Logbus
                             }
 
                             if (channel is ILogSupport)
-                                ((ILogSupport) channel).Log = new SimpleLogImpl(SyslogFacility.Internally, this);
+                                ((ILogSupport)channel).Log = new SimpleLogImpl(SyslogFacility.Internally, this);
 
                             channels.Add(channel);
                         }
@@ -280,11 +276,11 @@ namespace It.Unina.Dis.Logbus
                         try
                         {
                             Type factoryType = Type.GetType(Configuration.outtransports.factory);
-                            if (!typeof (ITransportFactoryHelper).IsAssignableFrom(factoryType))
+                            if (!typeof(ITransportFactoryHelper).IsAssignableFrom(factoryType))
                                 throw new LogbusConfigurationException(
                                     "Custom transport factory must implement ITransportFactoryHelper");
 
-                            TransportFactoryHelper = (ITransportFactoryHelper) Activator.CreateInstance(factoryType);
+                            TransportFactoryHelper = (ITransportFactoryHelper)Activator.CreateInstance(factoryType);
                         }
                         catch (LogbusConfigurationException)
                         {
@@ -305,7 +301,7 @@ namespace It.Unina.Dis.Logbus
                     if (Configuration.outtransports.outtransport != null ||
                         Configuration.outtransports.scanassembly != null)
                         //Not yet implemented, not yet possible!
-                        throw new NotImplementedException();
+                        throw new NotImplementedException("Not yet supported");
                 }
 
                 //If not previously added, add default now
@@ -314,7 +310,7 @@ namespace It.Unina.Dis.Logbus
                     TransportFactoryHelper = new SimpleTransportHelper();
                 //Add logger
                 if (TransportFactoryHelper is ILogSupport)
-                    ((ILogSupport) TransportFactoryHelper).Log = new SimpleLogImpl(
+                    ((ILogSupport)TransportFactoryHelper).Log = new SimpleLogImpl(
                         SyslogFacility.Internally, this);
 
                 //Tell that to the channel factory
@@ -323,7 +319,41 @@ namespace It.Unina.Dis.Logbus
 
                 //Custom filters definition
                 if (Configuration.customfilters != null)
-                    throw new NotImplementedException();
+                {
+                    if (Configuration.customfilters.scanassembly != null)
+                        foreach (AssemblyToScan definition in Configuration.customfilters.scanassembly)
+                        {
+                            if (string.IsNullOrEmpty(definition.assembly))
+                                throw new LogbusConfigurationException(
+                                    "Empty assembly name: cannot scan for custom filters");
+
+                            Assembly toScan;
+                            try
+                            {
+                                toScan = Assembly.Load(definition.assembly);
+                            }
+                            catch (Exception ex)
+                            {
+                                //Try with code base
+                                try
+                                {
+                                    toScan = Assembly.LoadFile(definition.codebase);
+                                }
+                                catch
+                                {
+                                    throw new LogbusConfigurationException("Unable to scan assembly {0} for custom filters", ex);
+                                }
+                            }
+                            CustomFilterHelper.Instance.ScanAssemblyAndRegister(toScan);
+                        }
+                    if (Configuration.customfilters.customfilter != null)
+                    {
+                        foreach (CustomFilterDefinition definition in Configuration.customfilters.customfilter)
+                        {
+                            CustomFilterHelper.Instance.RegisterCustomFilter(definition.name, definition.type, definition.description);
+                        }
+                    }
+                }
 
                 //Forwarding configuration
                 if (Configuration.forwardto != null && Configuration.forwardto.Length > 0)
@@ -335,10 +365,10 @@ namespace It.Unina.Dis.Logbus
                     {
                         ILogCollector collector = CollectorHelper.CreateCollector(def);
                         if (collector is ILogSupport)
-                            ((ILogSupport) collector).Log = new SimpleLogImpl(SyslogFacility.Internally, this);
+                            ((ILogSupport)collector).Log = new SimpleLogImpl(SyslogFacility.Internally, this);
                         collectors.Add(collector);
                     }
-                    Forwarder = new MultiCollector {Collectors = collectors.ToArray()};
+                    Forwarder = new MultiCollector { Collectors = collectors.ToArray() };
                 }
 
                 //Plugin configuration
@@ -354,7 +384,7 @@ namespace It.Unina.Dis.Logbus
 
                             Type pluginType = Type.GetType(def.type, true, false);
 
-                            if (!typeof (IPlugin).IsAssignableFrom(pluginType))
+                            if (!typeof(IPlugin).IsAssignableFrom(pluginType))
                             {
                                 LogbusConfigurationException ex =
                                     new LogbusConfigurationException("Requested type is not compatible with IPlugin");
@@ -362,7 +392,7 @@ namespace It.Unina.Dis.Logbus
                                 throw ex;
                             }
 
-                            IPlugin plugin = (IPlugin) Activator.CreateInstance(pluginType);
+                            IPlugin plugin = (IPlugin)Activator.CreateInstance(pluginType);
                             activePlugins.Add(plugin);
                             plugin.Log = new SimpleLogImpl(SyslogFacility.Internally, this);
                             plugin.Register(this);
@@ -389,8 +419,7 @@ namespace It.Unina.Dis.Logbus
             catch (Exception e)
             {
                 LogbusConfigurationException ex =
-                    new LogbusConfigurationException("Unable to configure Logbus, See inner exception for details", e)
-                        {ConfigurationObject = Configuration};
+                    new LogbusConfigurationException("Unable to configure Logbus, See inner exception for details", e) { ConfigurationObject = Configuration };
 
                 if (Error != null) Error(this, new UnhandledExceptionEventArgs(ex, true));
 
@@ -548,7 +577,7 @@ namespace It.Unina.Dis.Logbus
                         i = 0;
                         foreach (IRunnable chan in OutboundChannels)
                         {
-                            if (chan is IAsyncRunnable) asyncOut[i] = ((IAsyncRunnable) chan).BeginStart();
+                            if (!chan.Running && chan is IAsyncRunnable) asyncOut[i] = ((IAsyncRunnable)chan).BeginStart();
                             i++;
                         }
                     }
@@ -592,8 +621,9 @@ namespace It.Unina.Dis.Logbus
                         i = 0;
                         foreach (IRunnable chan in OutboundChannels)
                         {
-                            if (chan is IAsyncRunnable) ((IAsyncRunnable) chan).EndStart(asyncOut[i]);
-                            else chan.Start();
+                            if (!chan.Running)
+                                if (chan is IAsyncRunnable) ((IAsyncRunnable)chan).EndStart(asyncOut[i]);
+                                else chan.Start();
                             i++;
                         }
                     }
@@ -611,7 +641,7 @@ namespace It.Unina.Dis.Logbus
                         foreach (IInboundChannel chan in InboundChannels)
                         {
                             chan.MessageReceived += ChannelMessageReceived;
-                            if (chan is IAsyncRunnable) asyncIn[i] = ((IAsyncRunnable) chan).BeginStart();
+                            if (!chan.Running && chan is IAsyncRunnable) asyncIn[i] = ((IAsyncRunnable)chan).BeginStart();
                             i++;
                         }
                     }
@@ -627,8 +657,9 @@ namespace It.Unina.Dis.Logbus
                         i = 0;
                         foreach (IRunnable chan in InboundChannels)
                         {
-                            if (chan is IAsyncRunnable) ((IAsyncRunnable) chan).EndStart(asyncIn[i]);
-                            else chan.Start();
+                            if (!chan.Running)
+                                if (chan is IAsyncRunnable) ((IAsyncRunnable)chan).EndStart(asyncIn[i]);
+                                else chan.Start();
                             i++;
                         }
                     }
@@ -689,7 +720,7 @@ namespace It.Unina.Dis.Logbus
                     foreach (IInboundChannel chan in InboundChannels)
                     {
                         chan.MessageReceived -= MessageReceived;
-                        if (chan is IAsyncRunnable) asyncIn[i] = ((IAsyncRunnable) chan).BeginStop();
+                        if (chan.Running && chan is IAsyncRunnable) asyncIn[i] = ((IAsyncRunnable)chan).BeginStop();
                         i++;
                     }
                 }
@@ -709,7 +740,7 @@ namespace It.Unina.Dis.Logbus
                     i = 0;
                     foreach (IRunnable chan in OutboundChannels)
                     {
-                        if (chan is IAsyncRunnable) asyncOut[i] = ((IAsyncRunnable) chan).BeginStop();
+                        if (chan.Running && chan is IAsyncRunnable) asyncOut[i] = ((IAsyncRunnable)chan).BeginStop();
                         i++;
                     }
                 }
@@ -720,15 +751,15 @@ namespace It.Unina.Dis.Logbus
 
 
                 //End async stop Stop inbound channels so we won't get new messages
-
                 _inLock.AcquireReaderLock(DEFAULT_JOIN_TIMEOUT);
                 try
                 {
                     i = 0;
                     foreach (IRunnable chan in InboundChannels)
                     {
-                        if (chan is IAsyncRunnable) ((IAsyncRunnable) chan).EndStop(asyncIn[i]);
-                        else chan.Stop();
+                        if (chan.Running)
+                            if (chan is IAsyncRunnable) ((IAsyncRunnable)chan).EndStop(asyncIn[i]);
+                            else chan.Stop();
                         i++;
                     }
                 }
@@ -761,7 +792,7 @@ namespace It.Unina.Dis.Logbus
                     i = 0;
                     foreach (IRunnable chan in OutboundChannels)
                     {
-                        if (chan is IAsyncRunnable) ((IAsyncRunnable) chan).EndStop(asyncOut[i]);
+                        if (chan.Running && chan is IAsyncRunnable) ((IAsyncRunnable)chan).EndStop(asyncOut[i]);
                         i++;
                     }
                 }
@@ -835,7 +866,7 @@ namespace It.Unina.Dis.Logbus
         public void SubmitMessage(SyslogMessage msg)
         {
             //Round-robin queues. Need to compute modulo twice in order to deal with negative indexes
-            Queues[(((Interlocked.Increment(ref _currentQueue))%WORKER_THREADS) + WORKER_THREADS)%WORKER_THREADS].
+            Queues[(((Interlocked.Increment(ref _currentQueue)) % WORKER_THREADS) + WORKER_THREADS) % WORKER_THREADS].
                 Enqueue(msg);
         }
 
@@ -850,7 +881,7 @@ namespace It.Unina.Dis.Logbus
 
             //Prepare channel
             IOutboundChannel newChan = ChannelFactory.CreateChannel(channelName, channelDescription, channelFilter);
-            newChan.CoalescenceWindowMillis = (ulong) coalescenceWindow;
+            newChan.CoalescenceWindowMillis = (ulong)coalescenceWindow;
             newChan.ID = channelId;
 
             //First find if there is one with same ID
@@ -1375,7 +1406,7 @@ namespace It.Unina.Dis.Logbus
             return new ChannelInformation
                        {
                            clients = chan.SubscribedClients.ToString(),
-                           coalescenceWindow = (long) chan.CoalescenceWindowMillis,
+                           coalescenceWindow = (long)chan.CoalescenceWindowMillis,
                            description = chan.Description,
                            filter = chan.Filter as FilterBase,
                            id = chan.ID,
@@ -1422,11 +1453,11 @@ namespace It.Unina.Dis.Logbus
                 throw new LogbusException("Unable to subscribe to channel", ex);
             }
 
-            ChannelSubscriptionResponse ret = new ChannelSubscriptionResponse {clientid = clientid};
+            ChannelSubscriptionResponse ret = new ChannelSubscriptionResponse { clientid = clientid };
 
             List<RemoteLogbus.KeyValuePair> lst = new List<RemoteLogbus.KeyValuePair>();
             foreach (KeyValuePair<string, string> kvp in outParams)
-                lst.Add(new RemoteLogbus.KeyValuePair {name = kvp.Key, value = kvp.Value});
+                lst.Add(new RemoteLogbus.KeyValuePair { name = kvp.Key, value = kvp.Value });
             ret.param = lst.ToArray();
 
             return ret;
@@ -1458,10 +1489,11 @@ namespace It.Unina.Dis.Logbus
 
         private void HubThreadLoop(object queue)
         {
-            IFifoQueue<SyslogMessage> localQueue = (IFifoQueue<SyslogMessage>) queue;
+            IFifoQueue<SyslogMessage> localQueue = (IFifoQueue<SyslogMessage>)queue;
             //Loop until end
             try
             {
+                uint consecutiveFailsEvent = 0, consecutiveFailsChan = 0; //I don't care about overflowing
                 do
                 {
                     //Get message
@@ -1471,7 +1503,24 @@ namespace It.Unina.Dis.Logbus
                     if (!MainFilter.IsMatch(newMessage)) continue;
 
                     //Deliver to event listeners (SYNCHRONOUS: THREAD-BLOCKING!!!!!!!!!!!!!)
-                    if (MessageReceived != null) MessageReceived(this, new SyslogMessageEventArgs(newMessage));
+                    if (MessageReceived != null)
+                        try
+                        {
+                            MessageReceived(this, new SyslogMessageEventArgs(newMessage));
+                            consecutiveFailsEvent = 0;
+                        }
+                        catch (Exception ex)
+                        {
+                            consecutiveFailsEvent++;
+                            if (Error != null) Error(this, new UnhandledExceptionEventArgs(ex, false));
+
+                            if (consecutiveFailsEvent < 5) //Avoiding a potential infinite loop if a permanent error is present in the target
+                            {
+                                Log.Error("Unable to forward a log message to event listeners");
+                                Log.Debug("Error details: {0}", ex.Message);
+                            }
+                        }
+
 
                     //Deliver to channels
                     //Theorically, it's as faster as channels can do
@@ -1484,7 +1533,22 @@ namespace It.Unina.Dis.Logbus
                             {
                                 //Idea for the future: use Thread Pool to asynchronously deliver messages
                                 //Could lead to a threading disaster in case of large rates of messages
-                                chan.SubmitMessage(newMessage);
+                                try
+                                {
+                                    chan.SubmitMessage(newMessage);
+                                }
+                                catch (Exception ex)
+                                {
+                                    consecutiveFailsChan++;
+                                    if (Error != null) Error(this, new UnhandledExceptionEventArgs(ex, false));
+
+                                    if (consecutiveFailsChan < 5) //Avoiding a potential infinite loop if a permanent error is present in the target
+                                    {
+                                        Log.Error("Unable to forward a log message to event listeners");
+                                        Log.Debug("Error details: {0}", ex.Message);
+                                    }
+                                }
+                                consecutiveFailsChan = 0;
                             }
                         }
                         finally
@@ -1501,24 +1565,45 @@ namespace It.Unina.Dis.Logbus
             finally
             {
                 //Someone is telling me to stop
-
-                //Flush queue and then stop
-                IEnumerable<SyslogMessage> leftMessages = localQueue.Flush();
-                foreach (SyslogMessage msg in leftMessages)
+                try
                 {
-                    //Deliver to event listeners (SYNCHRONOUS: THREAD-BLOCKING!!!!!!!!!!!!!)
-                    if (MessageReceived != null) MessageReceived(this, new SyslogMessageEventArgs(msg));
+                    //Flush queue and then stop
+                    IEnumerable<SyslogMessage> leftMessages = localQueue.Flush();
+                    foreach (SyslogMessage msg in leftMessages)
+                    {
+                        if (!MainFilter.IsMatch(msg)) continue;
 
-                    //Deliver to channels
-                    //Theorically, it's as faster as channels can do
-                    if (OutboundChannels != null)
-                        foreach (IOutboundChannel chan in OutboundChannels)
-                        {
-                            //Idea for the future: use Thread Pool to asynchronously deliver messages
-                            //Could lead to a threading disaster in case of large rates of messages
-                            chan.SubmitMessage(msg);
-                        }
+                        //Deliver to event listeners (SYNCHRONOUS: THREAD-BLOCKING!!!!!!!!!!!!!)
+                        if (MessageReceived != null)
+                            try
+                            {
+                                MessageReceived(this, new SyslogMessageEventArgs(msg));
+                            }
+                            catch (Exception ex)
+                            {
+                                if (Error != null) Error(this, new UnhandledExceptionEventArgs(ex, false));
+                            }
+
+                        //Deliver to channels
+                        //Theorically, it's as faster as channels can do
+                        if (OutboundChannels != null)
+                            foreach (IOutboundChannel chan in OutboundChannels)
+                            {
+                                //Idea for the future: use Thread Pool to asynchronously deliver messages
+                                //Could lead to a threading disaster in case of large rates of messages
+                                try
+                                {
+                                    chan.SubmitMessage(msg);
+                                }
+                                catch (Exception ex)
+                                {
+                                    if (Error != null) Error(this, new UnhandledExceptionEventArgs(ex, false));
+                                }
+                            }
+                    }
                 }
+                catch (ThreadInterruptedException) { } //Residual
+                catch { } //There's nothing we can do, anyway
             }
         }
 
@@ -1526,17 +1611,32 @@ namespace It.Unina.Dis.Logbus
         {
             try
             {
+                uint consecutiveFails = 0;
                 do
                 {
                     //Get message
                     SyslogMessage newMessage = ForwardingQueue.Dequeue();
 
-                    Forwarder.SubmitMessage(newMessage);
+                    try
+                    {
+                        Forwarder.SubmitMessage(newMessage);
+                        consecutiveFails = 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        consecutiveFails++;
+                        if (Error != null) Error(this, new UnhandledExceptionEventArgs(ex, false));
+
+                        if (consecutiveFails < 5) //Avoiding a potential infinite loop if a permanent error is present in the logger
+                        {
+                            Log.Error("Unable to forward a log message");
+                            Log.Debug("Error details: {0}", ex.Message);
+                        }
+                    }
+
                 } while (!_hubThreadStop);
             }
-            catch (ThreadInterruptedException)
-            {
-            }
+            catch (ThreadInterruptedException) { }
         }
 
         private ILog Log { get; set; }
