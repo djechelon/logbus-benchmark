@@ -34,12 +34,13 @@ namespace It.Unina.Dis.Logbus.OutChannels
     internal sealed class SimpleOutChannel
         : IOutboundChannel, IAsyncRunnable, ILogSupport
     {
-        private readonly Dictionary<string, IOutboundTransport> _transports =
-            new Dictionary<string, IOutboundTransport>();
+        private readonly Dictionary<string, IOutboundTransport> _transports;
 
         private Timer _coalescenceTimer;
         private Thread _workerThread;
-        private readonly IFifoQueue<SyslogMessage> _messageQueue = new FastFifoQueue<SyslogMessage>(16384);
+        private readonly IFifoQueue<SyslogMessage> _messageQueue;
+        private readonly ReaderWriterLock _transportLock;
+        private const int DEFAULT_JOIN_TIMEOUT = 5000;
 
         private volatile bool _withinCoalescenceWindow, _running;
 
@@ -57,6 +58,9 @@ namespace It.Unina.Dis.Logbus.OutChannels
         {
             _startDelegate = new ThreadStart(Start);
             _stopDelegate = new ThreadStart(Stop);
+            _transportLock = new ReaderWriterLock();
+            _transports = new Dictionary<string, IOutboundTransport>();
+            _messageQueue = new FastFifoQueue<SyslogMessage>(16384);
         }
 
         ~SimpleOutChannel()
@@ -67,13 +71,22 @@ namespace It.Unina.Dis.Logbus.OutChannels
         private void Dispose(bool disposing)
         {
             if (Disposed) return;
+
             if (_running)
                 Stop();
 
 
             if (disposing)
             {
-                foreach (KeyValuePair<string, IOutboundTransport> trans in _transports) trans.Value.Dispose();
+                _transportLock.AcquireReaderLock(DEFAULT_JOIN_TIMEOUT);
+                try
+                {
+                    foreach (KeyValuePair<string, IOutboundTransport> trans in _transports) trans.Value.Dispose();
+                }
+                finally
+                {
+                    _transportLock.ReleaseReaderLock();
+                }
                 _messageQueue.Dispose();
             }
 
@@ -101,13 +114,25 @@ namespace It.Unina.Dis.Logbus.OutChannels
             _messageQueue.Enqueue(message);
         }
 
-        int IOutboundChannel.SubscribedClients
+        public int SubscribedClients
         {
             get
             {
                 int ret = 0;
-                foreach (KeyValuePair<string, IOutboundTransport> kvp in _transports)
-                    ret += kvp.Value.SubscribedClients;
+                _transportLock.AcquireReaderLock(DEFAULT_JOIN_TIMEOUT);
+                try
+                {
+                    foreach (KeyValuePair<string, IOutboundTransport> kvp in _transports)
+                        ret += kvp.Value.SubscribedClients;
+                }
+                finally
+                {
+                    _transportLock.ReleaseReaderLock();
+                }
+
+                if (MessageReceived != null)
+                    ret += MessageReceived.GetInvocationList().Length;
+
                 return ret;
             }
         }
@@ -128,13 +153,15 @@ namespace It.Unina.Dis.Logbus.OutChannels
                     if (e.Cancel) return;
                 }
 
-                _workerThread = new Thread(RunnerLoop) {IsBackground = true};
+                _workerThread = new Thread(RunnerLoop) { IsBackground = true };
                 _workerThread.Start();
 
                 _running = true;
 
                 if (Started != null) Started(this, EventArgs.Empty);
                 Log.Info("Channel {0} started", ID);
+
+                _block = SubscribedClients == 0;
             }
             catch (Exception ex)
             {
@@ -179,19 +206,24 @@ namespace It.Unina.Dis.Logbus.OutChannels
             }
         }
 
-        public IFilter Filter { [MethodImpl(MethodImplOptions.Synchronized)]
-        get; [MethodImpl(MethodImplOptions.Synchronized)]
-        set; }
+        public IFilter Filter
+        {
+            get;
+            set;
+        }
 
-        public ulong CoalescenceWindowMillis { [MethodImpl(MethodImplOptions.Synchronized)]
-        get; [MethodImpl(MethodImplOptions.Synchronized)]
-        set; }
+        public ulong CoalescenceWindowMillis
+        {
+            get;
+            set;
+        }
 
-        public ITransportFactoryHelper TransportFactoryHelper { [MethodImpl(MethodImplOptions.Synchronized)]
-        private get; [MethodImpl(MethodImplOptions.Synchronized)]
-        set; }
+        public ITransportFactoryHelper TransportFactoryHelper
+        {
+            private get;
+            set;
+        }
 
-        [MethodImpl(MethodImplOptions.Synchronized)]
         public string SubscribeClient(string transportId, IEnumerable<KeyValuePair<string, string>> inputInstructions,
                                       out IEnumerable<KeyValuePair<string, string>> outputInstructions)
         {
@@ -203,21 +235,38 @@ namespace It.Unina.Dis.Logbus.OutChannels
             {
                 Log.Info("New client subscribing on channel {0}", ID);
                 IOutboundTransport toSubscribe;
-                if (_transports.ContainsKey(transportId))
+                _transportLock.AcquireReaderLock(DEFAULT_JOIN_TIMEOUT);
+                try
                 {
-                    toSubscribe = _transports[transportId];
+                    if (_transports.ContainsKey(transportId))
+                    {
+                        toSubscribe = _transports[transportId];
+                    }
+                    else
+                    {
+                        try
+                        {
+                            toSubscribe = TransportFactoryHelper.GetFactory(transportId).CreateTransport();
+                        }
+                        catch (NotSupportedException e)
+                        {
+                            throw new LogbusException("Given transport is not supported on this node", e);
+                        }
+
+                        LockCookie ck = _transportLock.UpgradeToWriterLock(DEFAULT_JOIN_TIMEOUT);
+                        try
+                        {
+                            _transports.Add(transportId, toSubscribe);
+                        }
+                        finally
+                        {
+                            _transportLock.DowngradeFromWriterLock(ref ck);
+                        }
+                    }
                 }
-                else
+                finally
                 {
-                    try
-                    {
-                        toSubscribe = TransportFactoryHelper.GetFactory(transportId).CreateTransport();
-                    }
-                    catch (NotSupportedException e)
-                    {
-                        throw new LogbusException("Given transport is not supported on this node", e);
-                    }
-                    _transports.Add(transportId, toSubscribe);
+                    _transportLock.ReleaseReaderLock();
                 }
 
                 try
@@ -250,7 +299,6 @@ namespace It.Unina.Dis.Logbus.OutChannels
             }
         }
 
-        [MethodImpl(MethodImplOptions.Synchronized)]
         public void RefreshClient(string clientId)
         {
             if (Disposed) throw new ObjectDisposedException(GetType().FullName);
@@ -274,13 +322,23 @@ namespace It.Unina.Dis.Logbus.OutChannels
 
 
             //First find the transport
-            if (!_transports.ContainsKey(transportId))
+            _transportLock.AcquireReaderLock(DEFAULT_JOIN_TIMEOUT);
+            IOutboundTransport trans;
+            try
             {
-                ArgumentException ex = new ArgumentException("Invalid client ID");
-                ex.Data.Add("clientId-channel", clientId);
-                throw ex;
+                if (!_transports.ContainsKey(transportId))
+                {
+                    ArgumentException ex = new ArgumentException("Invalid client ID");
+                    ex.Data.Add("clientId-channel", clientId);
+                    throw ex;
+                }
+                trans = _transports[transportId];
             }
-            IOutboundTransport trans = _transports[transportId];
+            finally
+            {
+                _transportLock.ReleaseReaderLock();
+            }
+
 
             try
             {
@@ -312,7 +370,6 @@ namespace It.Unina.Dis.Logbus.OutChannels
             }
         }
 
-        [MethodImpl(MethodImplOptions.Synchronized)]
         public void UnsubscribeClient(string clientId)
         {
             if (Disposed) throw new ObjectDisposedException(GetType().FullName);
@@ -334,15 +391,24 @@ namespace It.Unina.Dis.Logbus.OutChannels
                 throw ex;
             }
 
-
             //First find the transport
-            if (!_transports.ContainsKey(transportId))
+            IOutboundTransport trans;
+            _transportLock.AcquireReaderLock(DEFAULT_JOIN_TIMEOUT);
+            try
             {
-                ArgumentException ex = new ArgumentException("Invalid client ID");
-                ex.Data.Add("clientId-channel", clientId);
-                throw ex;
+                if (!_transports.ContainsKey(transportId))
+                {
+                    ArgumentException ex = new ArgumentException("Invalid client ID");
+                    ex.Data.Add("clientId-channel", clientId);
+                    throw ex;
+                }
+                trans = _transports[transportId];
             }
-            IOutboundTransport trans = _transports[transportId];
+            finally
+            {
+                _transportLock.ReleaseReaderLock();
+            }
+
 
             try
             {
@@ -353,7 +419,15 @@ namespace It.Unina.Dis.Logbus.OutChannels
                     Log.Info("Client {0} unsubscribed from channel {1}", clientId, ID);
                     if (trans.SubscribedClients == 0)
                     {
-                        _transports.Remove(transportId);
+                        _transportLock.AcquireWriterLock(DEFAULT_JOIN_TIMEOUT);
+                        try
+                        {
+                            _transports.Remove(transportId);
+                        }
+                        finally
+                        {
+                            _transportLock.ReleaseWriterLock();
+                        }
                         trans.Dispose();
                     }
                 }
@@ -376,10 +450,6 @@ namespace It.Unina.Dis.Logbus.OutChannels
                 if (Error != null) Error(this, new UnhandledExceptionEventArgs(ex, true));
                 throw;
             }
-            finally
-            {
-                if (((IOutboundChannel) this).SubscribedClients == 0) _block = true;
-            }
         }
 
         #endregion
@@ -400,23 +470,61 @@ namespace It.Unina.Dis.Logbus.OutChannels
                 while (_running)
                 {
                     SyslogMessage msg = _messageQueue.Dequeue();
-                    if (!_withinCoalescenceWindow)
-                        if (Filter.IsMatch(msg))
-                        {
-                            if (MessageReceived != null) MessageReceived(this, new SyslogMessageEventArgs(msg));
-                            foreach (KeyValuePair<string, IOutboundTransport> kvp in _transports)
-                                kvp.Value.SubmitMessage(msg);
-                            if (CoalescenceWindowMillis > 0)
+                    if (_withinCoalescenceWindow || SubscribedClients == 0 || !Filter.IsMatch(msg)) continue;
+
+                    try
+                    {
+                        if (MessageReceived != null)
+                            MessageReceived(this, new SyslogMessageEventArgs(msg));
+                    }
+                    catch (Exception ex)
+                    {
+                        if (Error != null) Error(this, new UnhandledExceptionEventArgs(ex, false));
+
+                        Log.Error("Unable to forward messages from channel {0} via event", Name);
+                        Log.Debug("Error details: {0}", ex.Message);
+                    }
+
+                    _transportLock.AcquireReaderLock(DEFAULT_JOIN_TIMEOUT);
+                    try
+                    {
+                        foreach (KeyValuePair<string, IOutboundTransport> kvp in _transports)
+                            try
                             {
-                                _coalescenceTimer = new Timer(ResetCoalescence, null, (int) CoalescenceWindowMillis,
-                                                              Timeout.Infinite);
-                                _withinCoalescenceWindow = true;
+                                kvp.Value.SubmitMessage(msg);
                             }
-                        }
+                            catch (Exception ex)
+                            {
+                                if (Error != null) Error(this, new UnhandledExceptionEventArgs(ex, false));
+
+                                Log.Error("Unable to forward messages from channel {0} to transport {1}", Name, kvp.Key);
+                                Log.Debug("Error details: {0}", ex.Message);
+                            }
+                    }
+                    finally
+                    {
+                        _transportLock.ReleaseReaderLock();
+                    }
+
+                    if (CoalescenceWindowMillis > 0)
+                    {
+                        _coalescenceTimer = new Timer(ResetCoalescence, null, (int)CoalescenceWindowMillis,
+                                                      Timeout.Infinite);
+                        _withinCoalescenceWindow = true;
+                    }
                 }
             }
             catch (ThreadInterruptedException)
             {
+            }
+            catch (Exception ex)
+            {
+                if (Error != null) Error(this, new UnhandledExceptionEventArgs(ex, true));
+
+                Log.Alert("Unexpected error occurred in channel {0} background thread", Name);
+                Log.Debug("Error details: {0}", ex.Message);
+
+                throw; //This will cause the whole application to crash. At least we got the log trace
             }
             finally
             {
@@ -430,9 +538,23 @@ namespace It.Unina.Dis.Logbus.OutChannels
                     foreach (SyslogMessage msg in leftMessages)
                         if (Filter.IsMatch(msg))
                         {
-                            if (MessageReceived != null) MessageReceived(this, new SyslogMessageEventArgs(msg));
-                            foreach (KeyValuePair<string, IOutboundTransport> kvp in _transports)
-                                kvp.Value.SubmitMessage(msg);
+                            try
+                            {
+                                if (MessageReceived != null)
+                                    MessageReceived(this, new SyslogMessageEventArgs(msg));
+                            }
+                            catch { }
+
+                            _transportLock.AcquireReaderLock(DEFAULT_JOIN_TIMEOUT);
+                            try
+                            {
+                                foreach (KeyValuePair<string, IOutboundTransport> kvp in _transports)
+                                    kvp.Value.SubmitMessage(msg);
+                            }
+                            finally
+                            {
+                                _transportLock.ReleaseReaderLock();
+                            }
                             if (CoalescenceWindowMillis > 0) break;
                         }
                 }
