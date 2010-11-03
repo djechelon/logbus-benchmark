@@ -90,7 +90,7 @@ namespace LossCounter
                 value = host,
                 propertyName = Property.Host
             };
-            FacilityEqualsFilter facFilter = new FacilityEqualsFilter { facility = Facility.Local4 };
+            FacilityEqualsFilter facFilter = new FacilityEqualsFilter { facility = SyslogFacility.Local4 };
             PropertyFilter pidFilter = new PropertyFilter
             {
                 comparison = ComparisonOperator.eq,
@@ -106,7 +106,7 @@ namespace LossCounter
             SeverityFilter sevFilter = new SeverityFilter
                                            {
                                                comparison = ComparisonOperator.eq,
-                                               severity = Severity.Notice
+                                               severity = SyslogSeverity.Notice
                                            };
             using (ILogClient client = ClientHelper.CreateReliableClient(hostFilter & pidFilter & idFilter & sevFilter & facFilter))
             {
