@@ -110,9 +110,9 @@ namespace RTTMonitor
                 double milliseconds = double.Parse(split[1], CultureInfo.InvariantCulture);
 
                 double rtt = Math.Round(curMillis - milliseconds, 3);
-                Console.WriteLine("Current RTT value: {0}ms", rtt.ToString("0.000"));
+                Console.WriteLine("Current RTT value: {0:f3}ms", rtt);
 
-                _log.Debug("RTT: {0,3}", rtt.ToString(CultureInfo.InvariantCulture));
+                _log.Debug("RTT: {0:f3}", rtt);
                 _ar.Set();
             }
             catch (Exception ex)
