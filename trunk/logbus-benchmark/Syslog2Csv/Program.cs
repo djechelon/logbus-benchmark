@@ -53,16 +53,28 @@ namespace Syslog2Csv
                 {
                     if (message.Severity == SyslogSeverity.Debug)
                     {
-                        double rtt = double.Parse(message.Text.Split(' ')[1], NumberStyles.Float, CultureInfo.InvariantCulture);
-                        String row = String.Join(";", new string[]
-                                                          {
-                                                              index.ToString(),
-                                                              message.Timestamp.ToString(),
-                                                              message.Host,
-                                                              rtt.ToString("f3", CultureInfo.InvariantCulture)
-                                                          });
-                        index++;
-                        tw.WriteLine(row);
+                        try
+                        {
+                            double rtt = double.Parse(message.Text.Split(' ')[1], NumberStyles.Float,
+                                                      CultureInfo.InvariantCulture);
+                            String row = String.Join(";", new string[]
+                                                              {
+                                                                  index.ToString(),
+                                                                  message.Timestamp.ToString(),
+                                                                  message.Host,
+                                                                  rtt.ToString("f3", CultureInfo.InvariantCulture)
+                                                              });
+                            index++;
+                            tw.WriteLine(row);
+                        }
+                        catch (FormatException)
+                        {
+                            continue;
+                        }
+                        catch (IndexOutOfRangeException)
+                        {
+                            continue;
+                        }
                     }
                     else if (message.Severity == SyslogSeverity.Warning)
                     {
@@ -75,8 +87,9 @@ namespace Syslog2Csv
                 tw.Close();
                 Console.WriteLine("There were {0} messages lost complexively", lost);
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine(ex);
                 Environment.Exit(1);
             }
         }
