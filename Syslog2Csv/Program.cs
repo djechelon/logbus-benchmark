@@ -53,13 +53,13 @@ namespace Syslog2Csv
                 {
                     if (message.Severity == SyslogSeverity.Debug)
                     {
-
+                        double rtt = double.Parse(message.Text.Split(' ')[1], NumberStyles.Float, CultureInfo.InvariantCulture);
                         String row = String.Join(";", new string[]
                                                           {
                                                               index.ToString(),
                                                               message.Timestamp.ToString(),
                                                               message.Host,
-                                                              message.Text.Split(' ')[1]
+                                                              rtt.ToString("f3", CultureInfo.InvariantCulture)
                                                           });
                         index++;
                         tw.WriteLine(row);
