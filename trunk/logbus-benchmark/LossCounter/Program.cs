@@ -17,6 +17,7 @@ namespace LossCounter
         private static BitArray _messagesRcvd;
         private static int _received, _expected;
         private static readonly AutoResetEvent Stop = new AutoResetEvent(false);
+        private static Timer silenceTimer;
 
 
         [DllImport("libc.so.6")]
@@ -129,8 +130,11 @@ namespace LossCounter
 
                     server.SubmitMessage(message);
                 }
-                Console.WriteLine("Waiting up to 3 minutes for messages to be all delivered back here...");
-                if (Stop.WaitOne(new TimeSpan(0, 0, 3, 0)))
+                silenceTimer = new Timer(state => Stop.Set(), null, 40000, Timeout.Infinite);
+                Console.WriteLine("Waiting up to 30 seconds after last message received...");
+                Stop.WaitOne();
+
+                if (_expected == _received)
                     Console.WriteLine("Received all messaged");
                 else
                     Console.WriteLine("Lost {0} messages", _expected - _received);
@@ -139,6 +143,7 @@ namespace LossCounter
 
         static void client_MessageReceived(object sender, SyslogMessageEventArgs e)
         {
+            silenceTimer = new Timer(state => Stop.Set(), null, 40000, Timeout.Infinite);
             try
             {
                 _received++;
