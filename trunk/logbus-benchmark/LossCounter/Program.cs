@@ -68,7 +68,7 @@ namespace LossCounter
             }
 
 
-            int timeout = 1000000000 / rate; //1ns timeout
+            int timeout = (rate == 0) ? 0 : 1000000000 / rate; //1ns timeout
             if (timeout == 0)
                 Console.WriteLine("Ready to send {0} messages at infinite rate", _expected);
             else
