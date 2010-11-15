@@ -60,7 +60,8 @@ namespace LossCounter
             }
             int rate = 0;
 
-            if (args[1] != "inf" && !int.TryParse(args[1], out rate) || rate == 0)
+
+            if (args[1] != "inf" && (!int.TryParse(args[1], out rate) || rate == 0))
             {
                 Console.WriteLine("Invalid rate");
                 Environment.Exit(1);
