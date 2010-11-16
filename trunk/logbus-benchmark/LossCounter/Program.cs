@@ -134,12 +134,13 @@ namespace LossCounter
                 silenceTimer = new Timer(state => Stop.Set(), null, 40000, Timeout.Infinite);
                 Console.WriteLine("Waiting up to 30 seconds after last message received...");
                 Stop.WaitOne();
-
-                if (_expected == _received)
-                    Console.WriteLine("Received all messaged");
-                else
-                    Console.WriteLine("Lost {0} messages", _expected - _received);
             }
+
+            if (_expected == _received)
+                Console.WriteLine("Received all messaged");
+            else
+                Console.WriteLine("Lost {0} messages", _expected - _received);
+
         }
 
         static void client_MessageReceived(object sender, SyslogMessageEventArgs e)
