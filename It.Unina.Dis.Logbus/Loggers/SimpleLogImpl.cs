@@ -115,7 +115,7 @@ namespace It.Unina.Dis.Logbus.Loggers
                 if (value == 0)
                     _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
                 else
-                    _heartbeatTimer.Change(value*1000, value*1000);
+                    _heartbeatTimer.Change(value * 1000, value * 1000);
             }
         }
 
@@ -172,21 +172,6 @@ namespace It.Unina.Dis.Logbus.Loggers
         /// <param name="msg">Message that is going to be sent</param>
         protected virtual void PreProcessMessage(SyslogMessage msg)
         {
-            // Getting the caller information (note that index is 3 because of Log is called by another local Method... 
-            StackTrace stackTrace = new StackTrace();
-            StackFrame[] stackFrames = stackTrace.GetFrames();
-            msg.Data = new Dictionary<String, IDictionary<String, String>>();
-
-            Dictionary<string, string> callerData = new Dictionary<string, string>();
-            msg.Data.Add("CallerData@" + ENTERPRISE_ID, callerData);
-            if (stackFrames != null && stackFrames.Length >= 4)
-            {
-                callerData.Add("ClassName", stackFrames[3].GetMethod().DeclaringType.FullName);
-                callerData.Add("MethodName", stackFrames[3].GetMethod().Name);
-                callerData.Add("ModuleName", stackFrames[3].GetMethod().DeclaringType.Assembly.GetName().Name);
-            }
-            if (!string.IsNullOrEmpty(LogName)) callerData.Add("LogName", LogName);
-
             //Standard timeQuality
             Dictionary<string, string> timeQuality = new Dictionary<string, string>();
             msg.Data.Add("timeQuality", timeQuality);
@@ -198,7 +183,7 @@ namespace It.Unina.Dis.Logbus.Loggers
             origin.Add("ip", NetworkUtils.GetMyIPAddress().ToString());
             origin.Add("enterpriseId", ENTERPRISE_ID);
             origin.Add("software", "Logbus-ng-sharp");
-            origin.Add("swVersion", typeof (SimpleLogImpl).Assembly.GetName().Version.ToString(3));
+            origin.Add("swVersion", typeof(SimpleLogImpl).Assembly.GetName().Version.ToString(3));
 
             //Meta-info
             Dictionary<string, string> meta = new Dictionary<string, string>();
@@ -214,7 +199,7 @@ namespace It.Unina.Dis.Logbus.Loggers
             using (PerformanceCounter uptime = new PerformanceCounter("System", "System Up Time"))
             {
                 uptime.NextValue(); //Call this an extra time before reading its value
-                upTime = (long) Math.Round(TimeSpan.FromSeconds(uptime.NextValue()).TotalMilliseconds/10);
+                upTime = (long)Math.Round(TimeSpan.FromSeconds(uptime.NextValue()).TotalMilliseconds / 10);
             }
             meta.Add("sysUpTime", upTime.ToString(CultureInfo.InvariantCulture));
 #endif
@@ -225,11 +210,11 @@ namespace It.Unina.Dis.Logbus.Loggers
         /// </summary>
         /// <param name="message">Text message</param>
         /// <param name="severity">Severity of message</param>
-        protected virtual void Log(string message, SyslogSeverity severity)
+        protected void Log(string message, SyslogSeverity severity)
         {
             //Reset heartbeating
             if (_hbInterval > 0)
-                _heartbeatTimer.Change(HeartbeatInterval*1000, HeartbeatInterval*1000);
+                _heartbeatTimer.Change(HeartbeatInterval * 1000, HeartbeatInterval * 1000);
 
             String host = Environment.MachineName;
             String procid = Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture);
@@ -240,6 +225,21 @@ namespace It.Unina.Dis.Logbus.Loggers
                                         ProcessID = procid,
                                         ApplicationName = appname
                                     };
+
+            // Getting the caller information (note that index is 3 because of Log is called by another local Method... 
+            StackTrace stackTrace = new StackTrace();
+            StackFrame[] stackFrames = stackTrace.GetFrames();
+            msg.Data = new Dictionary<String, IDictionary<String, String>>();
+
+            Dictionary<string, string> callerData = new Dictionary<string, string>();
+            msg.Data.Add("CallerData@" + ENTERPRISE_ID, callerData);
+            if (stackFrames != null && stackFrames.Length >= 3)
+            {
+                callerData.Add("ClassName", stackFrames[2].GetMethod().DeclaringType.FullName);
+                callerData.Add("MethodName", stackFrames[2].GetMethod().Name);
+                callerData.Add("ModuleName", stackFrames[2].GetMethod().DeclaringType.Assembly.GetName().Name);
+            }
+            if (!string.IsNullOrEmpty(LogName)) callerData.Add("LogName", LogName);
 
             PreProcessMessage(msg);
 
