@@ -69,6 +69,8 @@ namespace It.Unina.Dis.Logbus.Collectors
         {
             _host = remoteHost;
             _port = remotePort;
+            _configured = true;
+            _deliveryThread.Start();
         }
 
         ~SyslogTlsCollector()
@@ -103,6 +105,8 @@ namespace It.Unina.Dis.Logbus.Collectors
             if (_disposed)
                 throw new ObjectDisposedException(GetType().FullName);
 
+            _queue.Enqueue(message);
+
             if (!_configured)
                 if (string.IsNullOrEmpty(_host))
                     throw new InvalidOperationException("Unable to use SyslogTlsCollector without host name");
@@ -113,8 +117,6 @@ namespace It.Unina.Dis.Logbus.Collectors
                             _deliveryThread.Start();
                             _configured = true;
                         }
-
-            _queue.Enqueue(message);
         }
 
         protected virtual bool TlsServerValidator(Object sender, X509Certificate certificate, X509Chain chain,
@@ -222,11 +224,19 @@ namespace It.Unina.Dis.Logbus.Collectors
                         {
                             _clientCertificate = new X509Certificate(_certificatePath);
                         }
-                        catch { }
+                        catch
+                        {
+                        }
                         break;
                     }
                 default:
                     throw new NotSupportedException("Invalid key");
+            }
+
+            if (!string.IsNullOrEmpty(_host) && _port != 0)
+            {
+                _configured = true;
+                _deliveryThread.Start();
             }
         }
 
@@ -256,10 +266,15 @@ namespace It.Unina.Dis.Logbus.Collectors
                             if (_host == null) throw new InvalidOperationException("Remote address not specified");
                             if (_port < 1 || _port > 65535) _port = SyslogTlsReceiver.TLS_PORT;
 
-                            _client = new TcpClient();
+                            _log.Debug("Creating new TcpClient for SyslogTlsCollector to {0}:{1}", _host, _port);
+                            _client = new TcpClient
+                                          {
+                                              NoDelay = true,
+                                              SendBufferSize = 1048576,
+                                              SendTimeout = 3600000
+                                          };
                         }
-
-                        if (!_client.Connected)
+                        else if (!_client.Connected)
                             try
                             {
                                 _log.Debug("Connecting TlsCollector to host {0}:{1}", _host, _port);
@@ -274,6 +289,12 @@ namespace It.Unina.Dis.Logbus.Collectors
                                 _remoteStream.AuthenticateAsClient(_host);
                                 // ReSharper restore AssignNullToNotNullAttribute
                                 _log.Debug("TlsCollector connected to host {0}:{1}", _host, _port);
+                            }
+                            catch (ObjectDisposedException)
+                            {
+                                _client = null;
+                                _remoteStream = null;
+                                continue;
                             }
                             catch (Exception ex)
                             {
@@ -301,7 +322,18 @@ namespace It.Unina.Dis.Logbus.Collectors
                             data = ms.ToArray();
                         }
 
+                        // ReSharper disable PossibleNullReferenceException
                         _remoteStream.Write(data, 0, data.Length);
+                        _remoteStream.Flush();
+                        // ReSharper restore PossibleNullReferenceException
+
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        _client = null;
+                        _remoteStream = null;
+                        _log.Error("TLS server {0}:{1} closed connection. Re-opening it", _host, _port);
+                        continue;
                     }
                     catch (ThreadInterruptedException)
                     {
