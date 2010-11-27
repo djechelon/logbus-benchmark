@@ -15,7 +15,7 @@
  *
  *  Software is distributed under Microsoft Reciprocal License
  *  Documentation under Creative Commons 3.0 BY-SA License
-*/
+ */
 
 using System;
 using System.Collections.Generic;
@@ -223,19 +223,6 @@ namespace It.Unina.Dis.Logbus.InChannels
                     {
                         throw new NotSupportedException("Configuration parameter is not supported");
                     }
-            }
-        }
-
-        /// <summary>
-        /// Implements IConfigurable.Configuration
-        /// </summary>
-        public override IEnumerable<KeyValuePair<string, string>> Configuration
-        {
-            set
-            {
-                if (Disposed) throw new ObjectDisposedException(GetType().FullName);
-                foreach (KeyValuePair<string, string> kvp in value)
-                    SetConfigurationParameter(kvp.Key, kvp.Value);
             }
         }
 
