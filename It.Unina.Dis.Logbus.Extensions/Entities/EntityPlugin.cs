@@ -253,6 +253,7 @@ namespace It.Unina.Dis.Logbus.Entities
             _entityTable.Constraints.Add(_primaryKey);
         }
 
+        /// <remarks/>
         ~EntityPlugin()
         {
             Dispose(false);
@@ -575,7 +576,7 @@ namespace It.Unina.Dis.Logbus.Entities
 
             if (oldPrio != newPrio)
             {
-                Log.Debug("Entity Manager switching priority to {0} to deliver messages faster", Enum.GetName(typeof(ThreadPriority), newPrio));
+                Log.Debug("Entity Manager switching priority to {0}", Enum.GetName(typeof(ThreadPriority), newPrio));
                 _workerThread.Priority = newPrio;
             }
         }
