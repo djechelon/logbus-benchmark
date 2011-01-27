@@ -17,6 +17,7 @@
  *  Documentation under Creative Commons 3.0 BY-SA License
  */
 
+using System;
 using System.Configuration;
 using System.Runtime.CompilerServices;
 
@@ -27,15 +28,23 @@ namespace It.Unina.Dis.Logbus.Configuration
     /// </summary>
     public static class ConfigurationHelper
     {
-
-        private static LogbusCoreConfiguration _core;
+        private static LogbusServerConfiguration _core;
         private static LogbusClientConfiguration _client;
         private static LogbusLoggerConfiguration _source;
 
         /// <summary>
-        /// Configuration for core facility
+        /// Obsolete server configuration accessor
         /// </summary>
-        public static LogbusCoreConfiguration CoreConfiguration
+        [Obsolete("CoreConfiguration is deprecated. Use ServerConfiguration instead.")]
+        public static LogbusServerConfiguration CoreConfiguration
+        {
+            get { return ServerConfiguration; }
+        }
+
+        /// <summary>
+        /// Configuration for Logbus server
+        /// </summary>
+        public static LogbusServerConfiguration ServerConfiguration
         {
             [MethodImpl(MethodImplOptions.Synchronized)]
             get
@@ -44,7 +53,7 @@ namespace It.Unina.Dis.Logbus.Configuration
                 try
                 {
                     //Try to auto-configure. If fails, skip for now. Somebody MUST then provide proper configuration
-                    _core = ConfigurationManager.GetSection("logbus-core") as LogbusCoreConfiguration;
+                    _core = ConfigurationManager.GetSection("logbus-server") as LogbusServerConfiguration;
                     return _core;
                 }
                 catch
